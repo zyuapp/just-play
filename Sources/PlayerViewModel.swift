@@ -57,7 +57,7 @@ final class PlayerViewModel: ObservableObject {
   private var appWillTerminateObserver: NSObjectProtocol?
 
   init(
-    engine: PlaybackEngine = AVFoundationPlaybackEngine(),
+    engine: PlaybackEngine = PlaybackEngineFactory.makeDefaultEngine(),
     recentPlaybackStore: RecentPlaybackStore = RecentPlaybackStore()
   ) {
     self.engine = engine

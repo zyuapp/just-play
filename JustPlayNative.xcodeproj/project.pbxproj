@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		096DA17FE4D46000B7571672 /* PlaybackEngineFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = E193BDD6260977714A8910AE /* PlaybackEngineFactory.swift */; };
+		0BC1F338F66D301610B61D97 /* VLCKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 31F1DBE11C9CCE9FDE8CDDB6 /* VLCKit.xcframework */; };
+		3187F8FD2C2C21FC4C323372 /* VLCPlaybackEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E216CF9C8AB75CE17B34A575 /* VLCPlaybackEngine.swift */; };
 		34DBA275DA5B8F857D8CD5C6 /* SubtitleCue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6914C20CE526C41F63348EE9 /* SubtitleCue.swift */; };
 		34DEF716B838FEDC80177DCA /* VideoOpenPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E401F35D80D07A5A4E9FA92B /* VideoOpenPanel.swift */; };
 		3CC7D2E410274F4D7198304C /* PlaybackEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F44939527D2854FB968E6D5 /* PlaybackEngine.swift */; };
@@ -22,7 +25,22 @@
 		B8CCD042942F720AFCBA255A /* PlayerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D77848B7E26FE6B14FCBDD0D /* PlayerViewModel.swift */; };
 		C2B9630F082E8E0017F19111 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007EE3686B226AB77A2E4092 /* ContentView.swift */; };
 		DC9FBFA2334AF57B1279DD31 /* RecentFilesPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4571405250499A789CDDBB7 /* RecentFilesPanel.swift */; };
+		E1452D4A1BA3ACC4DFC6498A /* VLCKit.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 31F1DBE11C9CCE9FDE8CDDB6 /* VLCKit.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B55B704412B2B0CDD1A5B79B /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				E1452D4A1BA3ACC4DFC6498A /* VLCKit.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		007EE3686B226AB77A2E4092 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -31,6 +49,7 @@
 		0F44939527D2854FB968E6D5 /* PlaybackEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackEngine.swift; sourceTree = "<group>"; };
 		21C60CF40DFCF37D1160BD8F /* RecentPlaybackStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentPlaybackStore.swift; sourceTree = "<group>"; };
 		2E49E8946E2E1203F4F6D4EE /* RecentPlaybackEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentPlaybackEntry.swift; sourceTree = "<group>"; };
+		31F1DBE11C9CCE9FDE8CDDB6 /* VLCKit.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = VLCKit.xcframework; path = Carthage/Build/VLCKit.xcframework; sourceTree = "<group>"; };
 		6914C20CE526C41F63348EE9 /* SubtitleCue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleCue.swift; sourceTree = "<group>"; };
 		6B06DA0AAAF690E3C0E1D43A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		851F6C378CC53565D461318F /* AppOpenBus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppOpenBus.swift; sourceTree = "<group>"; };
@@ -38,20 +57,43 @@
 		CA8AB22BE4B7208D0CE4CE17 /* PlaybackEngineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackEngineView.swift; sourceTree = "<group>"; };
 		D77848B7E26FE6B14FCBDD0D /* PlayerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViewModel.swift; sourceTree = "<group>"; };
 		DCD863B049B03E0588B3E562 /* AVFoundationPlaybackEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVFoundationPlaybackEngine.swift; sourceTree = "<group>"; };
+		E193BDD6260977714A8910AE /* PlaybackEngineFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackEngineFactory.swift; sourceTree = "<group>"; };
+		E216CF9C8AB75CE17B34A575 /* VLCPlaybackEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VLCPlaybackEngine.swift; sourceTree = "<group>"; };
 		E401F35D80D07A5A4E9FA92B /* VideoOpenPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoOpenPanel.swift; sourceTree = "<group>"; };
 		E4571405250499A789CDDBB7 /* RecentFilesPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentFilesPanel.swift; sourceTree = "<group>"; };
 		E7D7B159A8D54A1AF7193E71 /* SRTParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SRTParser.swift; sourceTree = "<group>"; };
 		FF1F582AF6C17D350FA6F56B /* PlaybackState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackState.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFrameworksBuildPhase section */
+		6D7EEE6B572075723063971B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0BC1F338F66D301610B61D97 /* VLCKit.xcframework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
 /* Begin PBXGroup section */
+		07FA56978CE233C08490313D /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				31F1DBE11C9CCE9FDE8CDDB6 /* VLCKit.xcframework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		16524567ABC7A4419BB095DC /* Playback */ = {
 			isa = PBXGroup;
 			children = (
 				DCD863B049B03E0588B3E562 /* AVFoundationPlaybackEngine.swift */,
 				0F44939527D2854FB968E6D5 /* PlaybackEngine.swift */,
+				E193BDD6260977714A8910AE /* PlaybackEngineFactory.swift */,
 				CA8AB22BE4B7208D0CE4CE17 /* PlaybackEngineView.swift */,
 				FF1F582AF6C17D350FA6F56B /* PlaybackState.swift */,
+				E216CF9C8AB75CE17B34A575 /* VLCPlaybackEngine.swift */,
 			);
 			path = Playback;
 			sourceTree = "<group>";
@@ -60,6 +102,7 @@
 			isa = PBXGroup;
 			children = (
 				B946E69DD2CFD3DE9A9D5C4D /* Sources */,
+				07FA56978CE233C08490313D /* Frameworks */,
 				AA69949B6E929C34A1D0CCC4 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -116,6 +159,8 @@
 			buildConfigurationList = 15D153C4F40B28E52E712906 /* Build configuration list for PBXNativeTarget "JustPlayNative" */;
 			buildPhases = (
 				055C3DF273DD6931052E5E7C /* Sources */,
+				6D7EEE6B572075723063971B /* Frameworks */,
+				B55B704412B2B0CDD1A5B79B /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -167,6 +212,7 @@
 				6FD6D7E9561363AE94A9DD24 /* DropURLLoader.swift in Sources */,
 				5CCAD30DA88FE0F49BFA1676 /* JustPlayNativeApp.swift in Sources */,
 				3CC7D2E410274F4D7198304C /* PlaybackEngine.swift in Sources */,
+				096DA17FE4D46000B7571672 /* PlaybackEngineFactory.swift in Sources */,
 				7E3DEF84CF535C71E8AD1E61 /* PlaybackEngineView.swift in Sources */,
 				989F08635834A1D29EB57961 /* PlaybackState.swift in Sources */,
 				B8CCD042942F720AFCBA255A /* PlayerViewModel.swift in Sources */,
@@ -175,6 +221,7 @@
 				A05AE1536231007CBA0BA4F3 /* RecentPlaybackStore.swift in Sources */,
 				45A1F747A258982A59D1D8F2 /* SRTParser.swift in Sources */,
 				34DBA275DA5B8F857D8CD5C6 /* SubtitleCue.swift in Sources */,
+				3187F8FD2C2C21FC4C323372 /* VLCPlaybackEngine.swift in Sources */,
 				34DEF716B838FEDC80177DCA /* VideoOpenPanel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -187,6 +234,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"Carthage/Build\"",
+				);
 				INFOPLIST_FILE = Sources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -266,6 +317,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"Carthage/Build\"",
+				);
 				INFOPLIST_FILE = Sources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

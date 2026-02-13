@@ -16,6 +16,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.justplay.native
         PRODUCT_NAME: JustPlayNative
+    dependencies:
+      - framework: Carthage/Build/VLCKit.xcframework
     info:
       path: Sources/Info.plist
       properties:
