@@ -1,0 +1,27 @@
+name: JustPlayNative
+options:
+  minimumXcodeGenVersion: 2.44.0
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: 5.9
+targets:
+  JustPlayNative:
+    type: application
+    platform: macOS
+    deploymentTarget: "13.0"
+    sources:
+      - path: Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.justplay.native
+        PRODUCT_NAME: JustPlayNative
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleName: JustPlayNative
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        LSMinimumSystemVersion: "13.0"
+        NSHighResolutionCapable: true
+        NSPrincipalClass: NSApplication
