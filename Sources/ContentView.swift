@@ -10,6 +10,7 @@ struct ContentView: View {
   @State private var seekPosition: Double = 0
   @State private var isSeeking = false
   @State private var isFullscreen = false
+  @State private var isHoveringFullscreenControlsRegion = false
   @State private var isSubtitleSearchModalPresented = false
 
   var body: some View {
@@ -17,14 +18,20 @@ struct ContentView: View {
       backgroundLayer
 
       HStack(spacing: 0) {
-        VStack(spacing: 14) {
-          headerView
+        VStack(spacing: isFullscreen ? 0 : 14) {
+          if !isFullscreen {
+            headerView
+          }
+
           playerSurface
             .frame(maxHeight: .infinity)
-          controlsView
+
+          if !isFullscreen {
+            controlsView
+          }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.horizontal, isFullscreen ? 0 : 16)
+        .padding(.vertical, isFullscreen ? 0 : 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
 
         if !isFullscreen {
@@ -47,6 +54,9 @@ struct ContentView: View {
     .animation(.easeInOut(duration: 0.22), value: isFullscreen)
     .onAppear {
       syncFullscreenState()
+      DispatchQueue.main.async {
+        syncFullscreenState()
+      }
     }
     .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { _ in
       isFullscreen = true
@@ -54,8 +64,8 @@ struct ContentView: View {
     .onReceive(NotificationCenter.default.publisher(for: NSWindow.didExitFullScreenNotification)) { _ in
       isFullscreen = false
     }
-    .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
-      syncFullscreenState()
+    .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
+      syncFullscreenState(from: notification.object as? NSWindow)
     }
     .onReceive(NotificationCenter.default.publisher(for: AppOpenBus.didRequestOpenURLs)) { notification in
       let urls = AppOpenBus.urls(from: notification)
@@ -65,6 +75,10 @@ struct ContentView: View {
     .onChange(of: viewModel.playbackState.currentTime) { newValue in
       guard !isSeeking else { return }
       seekPosition = max(newValue, 0)
+    }
+    .onChange(of: isFullscreen) { newValue in
+      guard !newValue else { return }
+      isHoveringFullscreenControlsRegion = false
     }
     .onChange(of: viewModel.playbackState.duration) { newValue in
       guard !isSeeking else { return }
@@ -103,12 +117,14 @@ struct ContentView: View {
         emptyStateView
       }
     }
-    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    .clipShape(RoundedRectangle(cornerRadius: isFullscreen ? 0 : 18, style: .continuous))
     .overlay {
-      RoundedRectangle(cornerRadius: 18, style: .continuous)
-        .stroke(.white.opacity(0.12), lineWidth: 1)
+      if !isFullscreen {
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+          .stroke(.white.opacity(0.12), lineWidth: 1)
+      }
     }
-    .shadow(color: .black.opacity(0.3), radius: 18, x: 0, y: 10)
+    .shadow(color: .black.opacity(isFullscreen ? 0 : 0.3), radius: isFullscreen ? 0 : 18, x: 0, y: isFullscreen ? 0 : 10)
     .overlay(alignment: .topLeading) {
       if isDropTargeted {
         dropIndicator
@@ -117,6 +133,15 @@ struct ContentView: View {
     .overlay(alignment: .bottom) {
       subtitleOverlay
     }
+    .overlay(alignment: .bottom) {
+      fullscreenControlsOverlay
+    }
+    .simultaneousGesture(
+      TapGesture(count: 2)
+        .onEnded {
+          toggleFullscreen()
+        }
+    )
     .onDrop(of: [.fileURL], isTargeted: $isDropTargeted, perform: handleDrop)
     .contextMenu {
       Button("Open...") {
@@ -138,6 +163,29 @@ struct ContentView: View {
           viewModel.removeSubtitleTrack()
         }
       }
+    }
+  }
+
+  @ViewBuilder
+  private var fullscreenControlsOverlay: some View {
+    if isFullscreen {
+      ZStack(alignment: .bottom) {
+        Color.clear
+          .frame(maxWidth: .infinity)
+          .frame(height: 172)
+
+        if isHoveringFullscreenControlsRegion {
+          controlsView
+            .padding(.horizontal, 16)
+            .padding(.bottom, 14)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+      }
+      .contentShape(Rectangle())
+      .onHover { hovering in
+        isHoveringFullscreenControlsRegion = hovering
+      }
+      .animation(.easeInOut(duration: 0.16), value: isHoveringFullscreenControlsRegion)
     }
   }
 
@@ -240,6 +288,11 @@ struct ContentView: View {
           Label("Subtitles", systemImage: viewModel.hasSubtitleTrack ? "captions.bubble.fill" : "captions.bubble")
         }
         .buttonStyle(.bordered)
+
+        Button(action: toggleFullscreen) {
+          Image(systemName: "arrow.up.left.and.arrow.down.right")
+        }
+        .buttonStyle(.bordered)
       }
 
       HStack(spacing: 10) {
@@ -263,12 +316,6 @@ struct ContentView: View {
         .pickerStyle(.segmented)
         .labelsHidden()
         .frame(width: 250)
-
-        Spacer()
-
-        Button(action: toggleFullscreen) {
-          Image(systemName: "arrow.up.left.and.arrow.down.right")
-        }
       }
 
       HStack(spacing: 8) {
@@ -295,18 +342,6 @@ struct ContentView: View {
         .font(.subheadline)
         .foregroundStyle(.secondary)
         .lineLimit(1)
-
-      Spacer(minLength: 12)
-
-      Button("Open...") {
-        viewModel.openPanel()
-      }
-
-      Button {
-        presentSubtitleSearchModal()
-      } label: {
-        Image(systemName: "captions.bubble")
-      }
     }
     .padding(.horizontal, 16)
     .padding(.vertical, 12)
@@ -318,14 +353,20 @@ struct ContentView: View {
   }
 
   private var backgroundLayer: some View {
-    LinearGradient(
-      colors: [
-        Color(red: 0.07, green: 0.1, blue: 0.14),
-        Color(red: 0.11, green: 0.15, blue: 0.2)
-      ],
-      startPoint: .topLeading,
-      endPoint: .bottomTrailing
-    )
+    Group {
+      if isFullscreen {
+        Color.black
+      } else {
+        LinearGradient(
+          colors: [
+            Color(red: 0.07, green: 0.1, blue: 0.14),
+            Color(red: 0.11, green: 0.15, blue: 0.2)
+          ],
+          startPoint: .topLeading,
+          endPoint: .bottomTrailing
+        )
+      }
+    }
     .ignoresSafeArea()
   }
 
@@ -352,11 +393,20 @@ struct ContentView: View {
   }
 
   private func toggleFullscreen() {
-    NSApplication.shared.keyWindow?.toggleFullScreen(nil)
+    currentWindow()?.toggleFullScreen(nil)
   }
 
-  private func syncFullscreenState() {
-    isFullscreen = NSApplication.shared.keyWindow?.styleMask.contains(.fullScreen) ?? false
+  private func syncFullscreenState(from window: NSWindow? = nil) {
+    if let window {
+      isFullscreen = window.styleMask.contains(.fullScreen)
+      return
+    }
+
+    isFullscreen = currentWindow()?.styleMask.contains(.fullScreen) ?? false
+  }
+
+  private func currentWindow() -> NSWindow? {
+    NSApplication.shared.mainWindow ?? NSApplication.shared.keyWindow
   }
 
   private func presentSubtitleSearchModal() {
