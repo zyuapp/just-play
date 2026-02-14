@@ -12,6 +12,7 @@ struct ContentView: View {
   @State private var isFullscreen = false
   @State private var isHoveringFullscreenControlsRegion = false
   @State private var isSubtitleSearchModalPresented = false
+  @State private var keyboardMonitor: Any? = nil
 
   var body: some View {
     ZStack {
@@ -54,9 +55,13 @@ struct ContentView: View {
     .animation(.easeInOut(duration: 0.22), value: isFullscreen)
     .onAppear {
       syncFullscreenState()
+      setupKeyboardMonitoring()
       DispatchQueue.main.async {
         syncFullscreenState()
       }
+    }
+    .onDisappear {
+      teardownKeyboardMonitoring()
     }
     .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { _ in
       isFullscreen = true
@@ -395,6 +400,63 @@ struct ContentView: View {
       guard let url else { return }
       viewModel.open(url: url)
     }
+  }
+
+  private func setupKeyboardMonitoring() {
+    guard keyboardMonitor == nil else {
+      return
+    }
+
+    keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+      guard self.currentWindow() != nil else {
+        return event
+      }
+
+      guard !event.modifierFlags.contains(.command) else {
+        return event
+      }
+
+      if event.keyCode == 53 {
+        self.exitFullScreenIfNeeded()
+        return nil
+      }
+
+      guard self.viewModel.currentURL != nil else {
+        return event
+      }
+
+      switch event.keyCode {
+      case 49:
+        self.viewModel.togglePlayPause()
+        return nil
+      case 123:
+        self.viewModel.skipBackward()
+        return nil
+      case 124:
+        self.viewModel.skipForward()
+        return nil
+      default:
+        return event
+      }
+    }
+  }
+
+  private func teardownKeyboardMonitoring() {
+    if let monitor = keyboardMonitor {
+      NSEvent.removeMonitor(monitor)
+      keyboardMonitor = nil
+    }
+  }
+
+  private func exitFullScreenIfNeeded() {
+    guard
+      let window = currentWindow(),
+      window.styleMask.contains(.fullScreen)
+    else {
+      return
+    }
+
+    window.toggleFullScreen(nil)
   }
 
   private func toggleFullscreen() {
