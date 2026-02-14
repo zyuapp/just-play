@@ -17,18 +17,23 @@ actor OpenSubtitlesClient {
     configuration != nil
   }
 
-  func searchSubtitles(query: String, language: String = "en") async throws -> [RemoteSubtitleSearchResult] {
+  func searchSubtitles(query: String, language: String? = nil) async throws -> [RemoteSubtitleSearchResult] {
     guard let configuration else {
       throw OpenSubtitlesError.notConfigured
     }
 
     var components = URLComponents(url: configuration.baseURL.appending(path: "/api/v1/subtitles"), resolvingAgainstBaseURL: false)
-    components?.queryItems = [
+    var queryItems = [
       URLQueryItem(name: "query", value: query),
-      URLQueryItem(name: "languages", value: language),
       URLQueryItem(name: "order_by", value: "download_count"),
       URLQueryItem(name: "order_direction", value: "desc")
     ]
+
+    if let language, !language.isEmpty {
+      queryItems.append(URLQueryItem(name: "languages", value: language))
+    }
+
+    components?.queryItems = queryItems
 
     guard let url = components?.url else {
       throw OpenSubtitlesError.invalidResponse
