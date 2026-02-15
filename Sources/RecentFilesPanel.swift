@@ -4,6 +4,7 @@ struct RecentFilesPanel: View {
   let entries: [RecentPlaybackEntry]
   let currentFilePath: String?
   let onSelect: (RecentPlaybackEntry) -> Void
+  let onRemove: (RecentPlaybackEntry) -> Void
 
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
@@ -30,12 +31,7 @@ struct RecentFilesPanel: View {
         ScrollView {
           LazyVStack(spacing: 10) {
             ForEach(entries) { entry in
-              Button {
-                onSelect(entry)
-              } label: {
-                recentRow(for: entry)
-              }
-              .buttonStyle(.plain)
+              recentRow(for: entry)
             }
           }
           .padding(.vertical, 4)
@@ -52,33 +48,51 @@ struct RecentFilesPanel: View {
     let cardStroke: Color = isCurrent ? Color.accentColor.opacity(0.45) : Color.white.opacity(0.07)
 
     return HStack(spacing: 10) {
-      Image(systemName: "film")
-        .font(.headline)
-        .frame(width: 28, height: 28)
-        .foregroundStyle(iconColor)
+      Button {
+        onSelect(entry)
+      } label: {
+        HStack(spacing: 10) {
+          Image(systemName: "film")
+            .font(.headline)
+            .frame(width: 28, height: 28)
+            .foregroundStyle(iconColor)
 
-      VStack(alignment: .leading, spacing: 4) {
-        Text(entry.displayName)
-          .font(.subheadline.weight(.medium))
-          .lineLimit(1)
+          VStack(alignment: .leading, spacing: 4) {
+            Text(entry.displayName)
+              .font(.subheadline.weight(.medium))
+              .lineLimit(1)
 
-        if isCurrent {
-          Text("Now Playing")
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(Color.accentColor)
+            if isCurrent {
+              Text("Now Playing")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(Color.accentColor)
+            }
+
+            Text(relativeDateText(for: entry.lastOpenedAt))
+              .font(.caption)
+              .foregroundStyle(.secondary)
+
+            ProgressView(value: entry.progress)
+              .progressViewStyle(.linear)
+
+            Text(progressDetail(for: entry))
+              .font(.caption2)
+              .foregroundStyle(.secondary)
+          }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .buttonStyle(.plain)
 
-        Text(relativeDateText(for: entry.lastOpenedAt))
-          .font(.caption)
-          .foregroundStyle(.secondary)
-
-        ProgressView(value: entry.progress)
-          .progressViewStyle(.linear)
-
-        Text(progressDetail(for: entry))
-          .font(.caption2)
+      Button {
+        onRemove(entry)
+      } label: {
+        Image(systemName: "xmark.circle.fill")
+          .font(.title3)
           .foregroundStyle(.secondary)
       }
+      .buttonStyle(.plain)
+      .help("Remove from recent")
     }
     .padding(10)
     .frame(maxWidth: .infinity, alignment: .leading)

@@ -148,6 +148,11 @@ final class PlayerViewModel: ObservableObject {
     open(url: entry.resolvedURL)
   }
 
+  func removeRecent(_ entry: RecentPlaybackEntry) {
+    recentEntries.removeAll { $0.filePath == entry.filePath }
+    recentPlaybackStore.saveEntries(recentEntries)
+  }
+
   func selectSubtitleTrack(_ trackID: String) {
     guard let track = loadedSubtitleTracks.first(where: { $0.id == trackID }) else {
       return

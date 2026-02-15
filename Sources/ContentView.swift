@@ -41,7 +41,8 @@ struct ContentView: View {
           RecentFilesPanel(
             entries: viewModel.recentEntries,
             currentFilePath: viewModel.currentFilePath,
-            onSelect: viewModel.openRecent
+            onSelect: viewModel.openRecent,
+            onRemove: viewModel.removeRecent
           )
           .padding(16)
           .frame(width: 320)
