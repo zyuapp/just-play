@@ -57,6 +57,8 @@ final class PlayerViewModel: ObservableObject {
   private var pendingResumeSeek: TimeInterval?
   private var shouldPrimePlaybackForResume = false
   private var shouldPauseAfterResumeSeek = false
+  private var pendingPausedSeekTime: TimeInterval?
+  private let pausedSeekConfirmationTolerance: TimeInterval = 0.35
   private var currentOpenedAt = Date()
 
   private var playbackProgressTimer: Timer?
@@ -123,6 +125,7 @@ final class PlayerViewModel: ObservableObject {
     currentOpenedAt = Date()
     shouldPrimePlaybackForResume = false
     shouldPauseAfterResumeSeek = false
+    pendingPausedSeekTime = nil
 
     let resumePosition = resumePosition(for: normalizedURL)
     pendingResumeSeek = resumePosition
@@ -240,10 +243,27 @@ final class PlayerViewModel: ObservableObject {
   }
 
   func seek(to seconds: Double, persistImmediately: Bool = false) {
-    engine.seek(to: seconds)
+    let clampedSeconds: TimeInterval
+    if playbackState.duration > 0 {
+      clampedSeconds = min(max(seconds, 0), playbackState.duration)
+    } else {
+      clampedSeconds = max(seconds, 0)
+    }
+
+    pendingResumeSeek = nil
+    shouldPrimePlaybackForResume = false
+    shouldPauseAfterResumeSeek = false
+    if playbackState.isPlaying {
+      pendingPausedSeekTime = nil
+    } else {
+      pendingPausedSeekTime = clampedSeconds
+    }
+
+    engine.seek(to: clampedSeconds)
+    playbackState.currentTime = clampedSeconds
 
     if persistImmediately {
-      persistCurrentPlaybackProgress(force: true, overridePosition: seconds)
+      persistCurrentPlaybackProgress(force: true, overridePosition: clampedSeconds)
     }
   }
 
@@ -268,8 +288,20 @@ final class PlayerViewModel: ObservableObject {
   }
 
   private func handlePlaybackStateChange(_ state: PlaybackState) {
-    playbackState = state
-    applyPendingResumeSeekIfNeeded(with: state)
+    var resolvedState = state
+
+    if let pendingPausedSeekTime {
+      if resolvedState.isPlaying {
+        self.pendingPausedSeekTime = nil
+      } else if abs(resolvedState.currentTime - pendingPausedSeekTime) <= pausedSeekConfirmationTolerance {
+        self.pendingPausedSeekTime = nil
+      } else {
+        resolvedState.currentTime = pendingPausedSeekTime
+      }
+    }
+
+    playbackState = resolvedState
+    applyPendingResumeSeekIfNeeded(with: resolvedState)
     updateSubtitleText(for: playbackState.currentTime)
   }
 

@@ -15,6 +15,7 @@ final class AVFoundationPlaybackEngine: PlaybackEngine {
   private var preferredRate: Float = 1.0
   private var currentVolume: Float = 1.0
   private var isMuted = false
+  private var latestSeekRequestID: UInt64 = 0
 
   init() {
     player = AVPlayer()
@@ -70,8 +71,20 @@ final class AVFoundationPlaybackEngine: PlaybackEngine {
 
   func seek(to time: TimeInterval) {
     guard time.isFinite else { return }
+    latestSeekRequestID &+= 1
+    let seekRequestID = latestSeekRequestID
     let target = CMTime(seconds: max(0, time), preferredTimescale: 600)
-    player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+    player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
+      guard
+        let self,
+        finished,
+        seekRequestID == self.latestSeekRequestID
+      else {
+        return
+      }
+
+      self.emitState()
+    }
   }
 
   func skip(by interval: TimeInterval) {
