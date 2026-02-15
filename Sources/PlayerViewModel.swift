@@ -55,6 +55,8 @@ final class PlayerViewModel: ObservableObject {
   private var loadedSubtitleTracks: [LoadedSubtitleTrack] = []
   private var subtitleCues: [SubtitleCue] = []
   private var pendingResumeSeek: TimeInterval?
+  private var shouldPrimePlaybackForResume = false
+  private var shouldPauseAfterResumeSeek = false
   private var currentOpenedAt = Date()
 
   private var playbackProgressTimer: Timer?
@@ -119,9 +121,14 @@ final class PlayerViewModel: ObservableObject {
 
     currentURL = normalizedURL
     currentOpenedAt = Date()
+    shouldPrimePlaybackForResume = false
+    shouldPauseAfterResumeSeek = false
 
     let resumePosition = resumePosition(for: normalizedURL)
     pendingResumeSeek = resumePosition
+    if !autoplay, resumePosition != nil {
+      shouldPrimePlaybackForResume = true
+    }
 
     if resumePosition != nil {
       statusMessage = "\(normalizedURL.lastPathComponent) (resuming)"
@@ -259,7 +266,7 @@ final class PlayerViewModel: ObservableObject {
   private func handlePlaybackStateChange(_ state: PlaybackState) {
     playbackState = state
     applyPendingResumeSeekIfNeeded(with: state)
-    updateSubtitleText(for: state.currentTime)
+    updateSubtitleText(for: playbackState.currentTime)
   }
 
   private func handlePlaybackDidFinish() {
@@ -267,21 +274,44 @@ final class PlayerViewModel: ObservableObject {
   }
 
   private func applyPendingResumeSeekIfNeeded(with state: PlaybackState) {
-    guard
-      let pendingResumeSeek,
-      state.duration > 0
-    else {
+    guard let pendingResumeSeek else {
       return
     }
 
-    let clampedSeek = min(max(pendingResumeSeek, 0), max(state.duration - 1, 0))
-    self.pendingResumeSeek = nil
+    let seekTarget: TimeInterval
+    if state.duration > 0 {
+      seekTarget = min(max(pendingResumeSeek, 0), max(state.duration - 1, 0))
+    } else {
+      seekTarget = max(pendingResumeSeek, 0)
+    }
 
-    guard clampedSeek > 0 else {
+    guard seekTarget > 0 else {
+      self.pendingResumeSeek = nil
+      shouldPrimePlaybackForResume = false
+      shouldPauseAfterResumeSeek = false
       return
     }
 
-    engine.seek(to: clampedSeek)
+    let tolerance: TimeInterval = 0.35
+    if abs(state.currentTime - seekTarget) <= tolerance {
+      self.pendingResumeSeek = nil
+
+      if shouldPauseAfterResumeSeek {
+        shouldPauseAfterResumeSeek = false
+        engine.pause()
+      }
+
+      return
+    }
+
+    engine.seek(to: seekTarget)
+    playbackState.currentTime = seekTarget
+
+    if shouldPrimePlaybackForResume, !state.isPlaying {
+      shouldPrimePlaybackForResume = false
+      shouldPauseAfterResumeSeek = true
+      engine.play()
+    }
   }
 
   private func startPlaybackProgressTimer() {
@@ -406,17 +436,18 @@ final class PlayerViewModel: ObservableObject {
       return nil
     }
 
-    guard entry.duration > 0 else {
-      return nil
-    }
-
-    let progress = entry.lastPlaybackPosition / entry.duration
-    if progress >= 0.98 {
-      return nil
-    }
-
     guard entry.lastPlaybackPosition > 0 else {
       return nil
+    }
+
+    if entry.duration > 0 {
+      let progress = entry.lastPlaybackPosition / entry.duration
+      if progress >= 0.98 {
+        return nil
+      }
+
+      let cappedPosition = min(entry.lastPlaybackPosition, max(entry.duration - 1, 0))
+      return cappedPosition > 0 ? cappedPosition : nil
     }
 
     return entry.lastPlaybackPosition
