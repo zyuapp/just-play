@@ -232,15 +232,19 @@ final class PlayerViewModel: ObservableObject {
   }
 
   func skipForward() {
-    engine.skip(by: 10)
+    skip(by: 10)
   }
 
   func skipBackward() {
-    engine.skip(by: -10)
+    skip(by: -10)
   }
 
-  func seek(to seconds: Double) {
+  func seek(to seconds: Double, persistImmediately: Bool = false) {
     engine.seek(to: seconds)
+
+    if persistImmediately {
+      persistCurrentPlaybackProgress(force: true, overridePosition: seconds)
+    }
   }
 
   private func isSupported(url: URL) -> Bool {
@@ -325,13 +329,19 @@ final class PlayerViewModel: ObservableObject {
     playbackProgressTimer = timer
   }
 
-  private func persistCurrentPlaybackProgress(force: Bool = false) {
+  private func skip(by interval: TimeInterval) {
+    let projectedPosition = playbackState.currentTime + interval
+    engine.skip(by: interval)
+    persistCurrentPlaybackProgress(force: true, overridePosition: projectedPosition)
+  }
+
+  private func persistCurrentPlaybackProgress(force: Bool = false, overridePosition: TimeInterval? = nil) {
     guard let currentURL else {
       return
     }
 
     let duration = max(playbackState.duration, existingEntry(for: currentURL)?.duration ?? 0)
-    let currentTime = max(playbackState.currentTime, 0)
+    let currentTime = max(overridePosition ?? playbackState.currentTime, 0)
 
     if duration <= 0 && !force {
       return

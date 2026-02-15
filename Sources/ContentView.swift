@@ -394,14 +394,14 @@ struct ContentView: View {
             }
 
             seekPosition = targetTime
-            viewModel.seek(to: targetTime)
+            viewModel.seek(to: targetTime, persistImmediately: true)
           }
           .onEnded { value in
             guard duration > 0 else { return }
             let clampedX = min(max(value.location.x, 0), width)
             let targetTime = seekTime(for: clampedX, totalWidth: width)
             seekPosition = targetTime
-            viewModel.seek(to: targetTime)
+            viewModel.seek(to: targetTime, persistImmediately: true)
             isSeeking = false
           }
       )
