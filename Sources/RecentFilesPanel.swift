@@ -216,16 +216,7 @@ struct RecentFilesPanel: View {
   }
 
   private func actionIconButton(systemName: String, helpText: String, action: @escaping () -> Void) -> some View {
-    Button(action: action) {
-      Image(systemName: systemName)
-        .font(.system(size: 15, weight: .semibold))
-        .foregroundStyle(.secondary)
-        .frame(width: 36, height: 36)
-        .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .contentShape(Rectangle())
-    }
-    .buttonStyle(.plain)
-    .help(helpText)
+    ActionIconButton(systemName: systemName, helpText: helpText, action: action)
   }
 
   private func relativeDateText(for date: Date) -> String {
@@ -247,5 +238,29 @@ struct RecentFilesPanel: View {
     }
 
     return String(format: "%02d:%02d", minutes, remainderSeconds)
+  }
+}
+
+private struct ActionIconButton: View {
+  let systemName: String
+  let helpText: String
+  let action: () -> Void
+
+  @State private var isHovered = false
+
+  var body: some View {
+    Button(action: action) {
+      Image(systemName: systemName)
+        .font(.system(size: 15, weight: .semibold))
+        .foregroundStyle(isHovered ? Color.primary : .secondary)
+        .frame(width: 36, height: 36)
+        .background(isHovered ? .white.opacity(0.15) : .white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .help(helpText)
+    .onHover { hovering in
+      isHovered = hovering
+    }
   }
 }
