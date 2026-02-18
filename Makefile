@@ -1,5 +1,5 @@
-PROJECT := JustPlayNative.xcodeproj
-SCHEME := JustPlayNative
+PROJECT := JustPlay.xcodeproj
+SCHEME := JustPlay
 DESTINATION := platform=macOS,arch=arm64
 APP_NAME := JustPlay.app
 DERIVED_DATA := ./.derivedData

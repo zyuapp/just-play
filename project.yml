@@ -1,4 +1,4 @@
-name: JustPlayNative
+name: JustPlay
 options:
   minimumXcodeGenVersion: 2.44.0
   createIntermediateGroups: true
@@ -6,7 +6,7 @@ settings:
   base:
     SWIFT_VERSION: 5.9
 targets:
-  JustPlayNative:
+  JustPlay:
     type: application
     platform: macOS
     deploymentTarget: "13.0"
@@ -14,7 +14,7 @@ targets:
       - path: Sources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.justplay.native
+        PRODUCT_BUNDLE_IDENTIFIER: com.justplay
         PRODUCT_NAME: JustPlay
     dependencies:
       - framework: Carthage/Build/VLCKit.xcframework
