@@ -239,7 +239,7 @@ struct ContentView: View {
       !subtitleText.isEmpty,
       viewModel.currentURL != nil
     {
-      Text(subtitleText)
+      SubtitleTextRenderer.render(subtitleText)
         .font(.system(size: 24, weight: .semibold, design: .rounded))
         .foregroundStyle(.white)
         .multilineTextAlignment(.center)

@@ -67,7 +67,7 @@ struct SubtitleTimelinePanel: View {
           .font(.system(.caption, design: .monospaced).weight(.semibold))
           .foregroundStyle(isActive ? Color.accentColor : .secondary)
 
-        Text(cue.text)
+        SubtitleTextRenderer.render(cue.text)
           .font(.subheadline.weight(isActive ? .semibold : .regular))
           .multilineTextAlignment(.leading)
           .lineLimit(nil)
