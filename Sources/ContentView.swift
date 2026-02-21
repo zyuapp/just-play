@@ -13,9 +13,13 @@ struct ContentView: View {
   @State private var lastLiveSeekDispatchTimestamp: TimeInterval = 0
   @State private var isFullscreen = false
   @State private var isHoveringFullscreenControlsRegion = false
+  @State private var isHoveringFullscreenSubtitleHotspot = false
+  @State private var isHoveringFullscreenSubtitlePanel = false
+  @State private var isFullscreenSubtitlePanelVisible = false
   @State private var isVolumePopoverPresented = false
   @State private var keyboardMonitor: Any? = nil
   @State private var isSidebarVisible = true
+  @State private var fullscreenSubtitleHideWorkItem: DispatchWorkItem?
 
   private let liveSeekDispatchInterval: TimeInterval = 0.08
   private let playbackRateOptions: [Double] = [0.5, 1.0, 1.25, 1.5, 2.0]
@@ -77,6 +81,7 @@ struct ContentView: View {
     }
     .onDisappear {
       teardownKeyboardMonitoring()
+      resetFullscreenSubtitlePanelState()
     }
     .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { _ in
       isFullscreen = true
@@ -99,6 +104,12 @@ struct ContentView: View {
     .onChange(of: isFullscreen) { newValue in
       guard !newValue else { return }
       isHoveringFullscreenControlsRegion = false
+      resetFullscreenSubtitlePanelState()
+    }
+    .onChange(of: viewModel.subtitleTimelineCues.isEmpty) { isEmpty in
+      if isEmpty {
+        resetFullscreenSubtitlePanelState()
+      }
     }
     .onChange(of: viewModel.playbackState.duration) { newValue in
       guard !isSeeking else { return }
@@ -133,6 +144,9 @@ struct ContentView: View {
     .overlay(alignment: .bottom) {
       subtitleOverlay
     }
+    .overlay(alignment: .trailing) {
+      fullscreenSubtitleOverlay
+    }
     .overlay(alignment: .bottom) {
       fullscreenControlsOverlay
     }
@@ -163,6 +177,35 @@ struct ContentView: View {
           viewModel.removeSubtitleTrack()
         }
       }
+    }
+  }
+
+  @ViewBuilder
+  private var fullscreenSubtitleOverlay: some View {
+    if isFullscreen, !viewModel.subtitleTimelineCues.isEmpty {
+      ZStack(alignment: .trailing) {
+        Color.clear
+          .frame(width: 26)
+          .frame(maxHeight: .infinity)
+          .contentShape(Rectangle())
+          .onHover(perform: updateFullscreenSubtitleHotspotHover)
+
+        if isFullscreenSubtitlePanelVisible {
+          SubtitleTimelinePanel(
+            cues: viewModel.subtitleTimelineCues,
+            activeCueIndex: viewModel.activeSubtitleCueIndex,
+            activeSubtitleFileName: viewModel.activeSubtitleFileName,
+            onSelectCue: viewModel.seekToSubtitleCue
+          )
+          .padding(14)
+          .frame(width: 360)
+          .frame(maxHeight: .infinity, alignment: .topLeading)
+          .background(.regularMaterial)
+          .transition(.move(edge: .trailing).combined(with: .opacity))
+          .onHover(perform: updateFullscreenSubtitlePanelHover)
+        }
+      }
+      .animation(.easeInOut(duration: 0.2), value: isFullscreenSubtitlePanelVisible)
     }
   }
 
@@ -637,6 +680,53 @@ struct ContentView: View {
 
   private func currentWindow() -> NSWindow? {
     NSApplication.shared.mainWindow ?? NSApplication.shared.keyWindow
+  }
+
+  private func updateFullscreenSubtitleHotspotHover(_ hovering: Bool) {
+    isHoveringFullscreenSubtitleHotspot = hovering
+
+    if hovering {
+      showFullscreenSubtitlePanel()
+    } else {
+      scheduleFullscreenSubtitlePanelHideIfNeeded()
+    }
+  }
+
+  private func updateFullscreenSubtitlePanelHover(_ hovering: Bool) {
+    isHoveringFullscreenSubtitlePanel = hovering
+
+    if hovering {
+      showFullscreenSubtitlePanel()
+    } else {
+      scheduleFullscreenSubtitlePanelHideIfNeeded()
+    }
+  }
+
+  private func showFullscreenSubtitlePanel() {
+    fullscreenSubtitleHideWorkItem?.cancel()
+    fullscreenSubtitleHideWorkItem = nil
+    isFullscreenSubtitlePanelVisible = true
+  }
+
+  private func scheduleFullscreenSubtitlePanelHideIfNeeded() {
+    fullscreenSubtitleHideWorkItem?.cancel()
+
+    let workItem = DispatchWorkItem {
+      if !isHoveringFullscreenSubtitleHotspot && !isHoveringFullscreenSubtitlePanel {
+        isFullscreenSubtitlePanelVisible = false
+      }
+    }
+
+    fullscreenSubtitleHideWorkItem = workItem
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.14, execute: workItem)
+  }
+
+  private func resetFullscreenSubtitlePanelState() {
+    fullscreenSubtitleHideWorkItem?.cancel()
+    fullscreenSubtitleHideWorkItem = nil
+    isHoveringFullscreenSubtitleHotspot = false
+    isHoveringFullscreenSubtitlePanel = false
+    isFullscreenSubtitlePanelVisible = false
   }
 
   private func formattedTime(_ seconds: TimeInterval) -> String {
