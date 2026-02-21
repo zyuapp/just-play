@@ -4,6 +4,7 @@ struct RecentFilesPanel: View {
   private enum PanelTab: Hashable {
     case recent
     case archive
+    case subtitles
   }
 
   let entries: [RecentPlaybackEntry]
@@ -13,6 +14,10 @@ struct RecentFilesPanel: View {
   let onRemove: (RecentPlaybackEntry) -> Void
   let onRestoreArchived: (RecentPlaybackEntry) -> Void
   let onDeleteArchivedPermanently: (RecentPlaybackEntry) -> Void
+  let subtitleCues: [SubtitleCue]
+  let activeSubtitleCueIndex: Int?
+  let activeSubtitleFileName: String?
+  let onSelectSubtitleCue: (Int) -> Void
 
   @State private var selectedTab: PanelTab = .recent
 
@@ -21,6 +26,7 @@ struct RecentFilesPanel: View {
       Picker("Section", selection: $selectedTab) {
         Text("Recent").tag(PanelTab.recent)
         Text("Archive").tag(PanelTab.archive)
+        Text("Subtitles").tag(PanelTab.subtitles)
       }
       .pickerStyle(.segmented)
       .labelsHidden()
@@ -31,6 +37,8 @@ struct RecentFilesPanel: View {
           recentTab
         case .archive:
           archiveTab
+        case .subtitles:
+          subtitlesTab
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -82,6 +90,15 @@ struct RecentFilesPanel: View {
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+  }
+
+  private var subtitlesTab: some View {
+    SubtitleTimelinePanel(
+      cues: subtitleCues,
+      activeCueIndex: activeSubtitleCueIndex,
+      activeSubtitleFileName: activeSubtitleFileName,
+      onSelectCue: onSelectSubtitleCue
+    )
   }
 
   private func sectionHeader(title: String, count: Int) -> some View {

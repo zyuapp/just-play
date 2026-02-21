@@ -52,7 +52,11 @@ struct ContentView: View {
             onSelect: viewModel.openRecent,
             onRemove: viewModel.removeRecent,
             onRestoreArchived: viewModel.restoreArchivedRecent,
-            onDeleteArchivedPermanently: viewModel.deleteArchivedRecentPermanently
+            onDeleteArchivedPermanently: viewModel.deleteArchivedRecentPermanently,
+            subtitleCues: viewModel.subtitleTimelineCues,
+            activeSubtitleCueIndex: viewModel.activeSubtitleCueIndex,
+            activeSubtitleFileName: viewModel.activeSubtitleFileName,
+            onSelectSubtitleCue: viewModel.seekToSubtitleCue
           )
           .padding(16)
           .frame(width: 320)
