@@ -13,6 +13,8 @@ final class PlayerViewModel: ObservableObject {
   @Published private(set) var activeSubtitleFileName: String?
   @Published private(set) var availableSubtitleTracks: [SubtitleTrackOption] = []
   @Published private(set) var selectedSubtitleTrackID: String?
+  @Published private(set) var subtitleTimelineCues: [SubtitleCue] = []
+  @Published private(set) var activeSubtitleCueIndex: Int?
 
   @Published var subtitlesEnabled = true {
     didSet {
@@ -230,6 +232,14 @@ final class PlayerViewModel: ObservableObject {
     persistCurrentPlaybackProgress(force: true)
   }
 
+  func seekToSubtitleCue(at index: Int) {
+    guard subtitleTimelineCues.indices.contains(index) else {
+      return
+    }
+
+    seek(to: subtitleTimelineCues[index].start, persistImmediately: true)
+  }
+
   func togglePlayPause() {
     if playbackState.isPlaying {
       engine.pause()
@@ -265,6 +275,7 @@ final class PlayerViewModel: ObservableObject {
 
     engine.seek(to: clampedSeconds)
     playbackState.currentTime = clampedSeconds
+    updateSubtitleText(for: clampedSeconds)
 
     if persistImmediately {
       persistCurrentPlaybackProgress(force: true, overridePosition: clampedSeconds)
@@ -568,6 +579,7 @@ final class PlayerViewModel: ObservableObject {
 
   private func activateSubtitleTrack(_ track: LoadedSubtitleTrack) {
     subtitleCues = track.cues
+    subtitleTimelineCues = track.cues
     activeSubtitleFileName = track.displayName
     selectedSubtitleTrackID = track.id
     subtitlesEnabled = true
@@ -577,6 +589,8 @@ final class PlayerViewModel: ObservableObject {
 
   private func clearActiveSubtitleTrack() {
     subtitleCues = []
+    subtitleTimelineCues = []
+    activeSubtitleCueIndex = nil
     subtitleText = nil
     activeSubtitleFileName = nil
     selectedSubtitleTrackID = nil
@@ -657,6 +671,8 @@ final class PlayerViewModel: ObservableObject {
   }
 
   private func updateSubtitleText(for time: TimeInterval) {
+    activeSubtitleCueIndex = activeSubtitleCueIndex(at: time)
+
     guard subtitlesEnabled else {
       subtitleText = nil
       return
@@ -667,7 +683,36 @@ final class PlayerViewModel: ObservableObject {
       return
     }
 
-    subtitleText = subtitleCues.first { $0.contains(time) }?.text
+    guard let activeSubtitleCueIndex else {
+      subtitleText = nil
+      return
+    }
+
+    subtitleText = subtitleCues[activeSubtitleCueIndex].text
+  }
+
+  private func activeSubtitleCueIndex(at time: TimeInterval) -> Int? {
+    guard !subtitleCues.isEmpty else {
+      return nil
+    }
+
+    var lowerBound = 0
+    var upperBound = subtitleCues.count - 1
+
+    while lowerBound <= upperBound {
+      let middleIndex = lowerBound + ((upperBound - lowerBound) / 2)
+      let cue = subtitleCues[middleIndex]
+
+      if time < cue.start {
+        upperBound = middleIndex - 1
+      } else if time > cue.end {
+        lowerBound = middleIndex + 1
+      } else {
+        return middleIndex
+      }
+    }
+
+    return nil
   }
 
   private func subtitleContentTypes() -> [UTType] {
