@@ -2,48 +2,68 @@ import Foundation
 import SwiftUI
 
 struct SubtitleTimelinePanel: View {
+  private struct DisplayedCue: Identifiable {
+    let id: Int
+    let cue: SubtitleCue
+  }
+
   let cues: [SubtitleCue]
   let activeCueIndex: Int?
   let activeSubtitleFileName: String?
   let onSelectCue: (Int) -> Void
-  var autoCenterActiveCue = true
+
+  @State private var searchQuery = ""
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      header
+    ScrollViewReader { proxy in
+      VStack(alignment: .leading, spacing: 14) {
+        header(using: proxy)
 
-      if cues.isEmpty {
-        Text("No subtitle lines available.")
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .padding(.top, 4)
-      } else {
-        ScrollViewReader { proxy in
+        if cues.isEmpty {
+          Text("No subtitle lines available.")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
+        } else if displayedCues.isEmpty {
+          Text("No matching subtitle lines.")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
+        } else {
           ScrollView {
             LazyVStack(spacing: 10) {
-              ForEach(Array(cues.enumerated()), id: \.offset) { index, cue in
-                cueRow(cue: cue, index: index)
-                  .id(index)
+              ForEach(displayedCues) { displayedCue in
+                cueRow(cue: displayedCue.cue, index: displayedCue.id)
+                  .id(displayedCue.id)
               }
             }
             .padding(.vertical, 4)
           }
-          .onAppear {
-            centerActiveCue(using: proxy)
-          }
-          .onChange(of: activeCueIndex) { _ in
-            centerActiveCue(using: proxy)
-          }
         }
       }
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
   }
 
-  private var header: some View {
+  private func header(using proxy: ScrollViewProxy) -> some View {
     VStack(alignment: .leading, spacing: 6) {
-      Text("Subtitles")
-        .font(.title3.weight(.semibold))
+      HStack(spacing: 8) {
+        Text("Subtitles")
+          .font(.title3.weight(.semibold))
+
+        Spacer(minLength: 8)
+
+        Button {
+          jumpToCurrentCue(using: proxy)
+        } label: {
+          Image(systemName: "scope")
+            .font(.system(size: 13, weight: .semibold))
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .help("Jump to current subtitle")
+        .disabled(activeCueIndex == nil)
+      }
 
       if let activeSubtitleFileName {
         Text(activeSubtitleFileName)
@@ -51,6 +71,10 @@ struct SubtitleTimelinePanel: View {
           .foregroundStyle(.secondary)
           .lineLimit(1)
       }
+
+      TextField("Search subtitle lines", text: $searchQuery)
+        .textFieldStyle(.roundedBorder)
+        .font(.subheadline)
     }
   }
 
@@ -87,8 +111,23 @@ struct SubtitleTimelinePanel: View {
     .buttonStyle(.plain)
   }
 
-  private func centerActiveCue(using proxy: ScrollViewProxy) {
-    guard autoCenterActiveCue, let activeCueIndex else {
+  private var displayedCues: [DisplayedCue] {
+    let indexedCues = cues.enumerated().map { index, cue in
+      DisplayedCue(id: index, cue: cue)
+    }
+
+    let normalizedQuery = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !normalizedQuery.isEmpty else {
+      return indexedCues
+    }
+
+    return indexedCues.filter { displayedCue in
+      displayedCue.cue.text.localizedCaseInsensitiveContains(normalizedQuery)
+    }
+  }
+
+  private func jumpToCurrentCue(using proxy: ScrollViewProxy) {
+    guard let activeCueIndex else {
       return
     }
 
