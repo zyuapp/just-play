@@ -689,7 +689,7 @@ final class PlayerViewModel: ObservableObject {
   }
 
   private func updateSubtitleText(for time: TimeInterval) {
-    activeSubtitleCueIndex = activeSubtitleCueIndex(at: time)
+    activeSubtitleCueIndex = findActiveSubtitleCueIndex(at: time)
 
     guard subtitlesEnabled else {
       subtitleText = nil
@@ -709,7 +709,7 @@ final class PlayerViewModel: ObservableObject {
     subtitleText = subtitleCues[activeSubtitleCueIndex].text
   }
 
-  private func activeSubtitleCueIndex(at time: TimeInterval) -> Int? {
+  private func findActiveSubtitleCueIndex(at time: TimeInterval) -> Int? {
     guard !subtitleCues.isEmpty else {
       return nil
     }

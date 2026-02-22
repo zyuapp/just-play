@@ -87,7 +87,7 @@ struct SubtitleTimelinePanel: View {
       onSelectCue(index)
     } label: {
       VStack(alignment: .leading, spacing: 6) {
-        Text(formattedTime(cue.start))
+        Text(cue.start.playbackText)
           .font(.system(.caption, design: .monospaced).weight(.semibold))
           .foregroundStyle(isActive ? Color.accentColor : .secondary)
 
@@ -122,7 +122,9 @@ struct SubtitleTimelinePanel: View {
     }
 
     return indexedCues.filter { displayedCue in
-      displayedCue.cue.text.localizedCaseInsensitiveContains(normalizedQuery)
+      let plainText = SubtitleTextRenderer.plainText(displayedCue.cue.text)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+      return plainText.localizedCaseInsensitiveContains(normalizedQuery)
     }
   }
 
@@ -131,23 +133,18 @@ struct SubtitleTimelinePanel: View {
       return
     }
 
+    if !displayedCues.contains(where: { $0.id == activeCueIndex }) {
+      searchQuery = ""
+      DispatchQueue.main.async {
+        withAnimation(.easeInOut(duration: 0.22)) {
+          proxy.scrollTo(activeCueIndex, anchor: .center)
+        }
+      }
+      return
+    }
+
     withAnimation(.easeInOut(duration: 0.22)) {
       proxy.scrollTo(activeCueIndex, anchor: .center)
     }
-  }
-
-  private func formattedTime(_ seconds: TimeInterval) -> String {
-    guard seconds.isFinite else { return "00:00" }
-
-    let totalSeconds = max(Int(seconds.rounded(.down)), 0)
-    let hours = totalSeconds / 3600
-    let minutes = (totalSeconds % 3600) / 60
-    let remainderSeconds = totalSeconds % 60
-
-    if hours > 0 {
-      return String(format: "%d:%02d:%02d", hours, minutes, remainderSeconds)
-    }
-
-    return String(format: "%02d:%02d", minutes, remainderSeconds)
   }
 }

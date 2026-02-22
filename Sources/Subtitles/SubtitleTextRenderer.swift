@@ -2,6 +2,10 @@ import Foundation
 import SwiftUI
 
 enum SubtitleTextRenderer {
+  private static let tagRegex: NSRegularExpression? = {
+    try? NSRegularExpression(pattern: "(?i)<\\s*(/?)\\s*([ibu])\\s*>")
+  }()
+
   struct Segment: Equatable {
     let text: String
     let isItalic: Bool
@@ -18,6 +22,12 @@ enum SubtitleTextRenderer {
     return segments.reduce(Text("")) { partial, segment in
       partial + styledText(for: segment)
     }
+  }
+
+  static func plainText(_ rawText: String) -> String {
+    parseSegments(in: rawText)
+      .map { $0.text }
+      .joined()
   }
 
   private static func styledText(for segment: Segment) -> Text {
@@ -39,8 +49,7 @@ enum SubtitleTextRenderer {
   }
 
   private static func parseSegments(in rawText: String) -> [Segment] {
-    let pattern = "(?i)<\\s*(/?)\\s*([ibu])\\s*>"
-    guard let regex = try? NSRegularExpression(pattern: pattern) else {
+    guard let regex = tagRegex else {
       return [Segment(text: rawText, isItalic: false, isBold: false, isUnderlined: false)]
     }
 

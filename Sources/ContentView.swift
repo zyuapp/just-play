@@ -22,6 +22,7 @@ struct ContentView: View {
   @State private var fullscreenSubtitleHideWorkItem: DispatchWorkItem?
 
   private let liveSeekDispatchInterval: TimeInterval = 0.08
+  private let fullscreenSubtitleHideDelay: TimeInterval = 0.35
   private let playbackRateOptions: [Double] = [0.5, 1.0, 1.25, 1.5, 2.0]
 
   var body: some View {
@@ -301,14 +302,14 @@ struct ContentView: View {
       .disabled(!hasActiveMedia)
 
       HStack(spacing: 8) {
-        Text(formattedTime(displayedCurrentTime))
+        Text(displayedCurrentTime.playbackText)
           .font(.system(.footnote, design: .monospaced))
           .foregroundStyle(.primary)
           .frame(width: 52, alignment: .leading)
 
         seekBar
 
-        Text(formattedTime(viewModel.playbackState.duration))
+        Text(viewModel.playbackState.duration.playbackText)
           .font(.system(.footnote, design: .monospaced))
           .foregroundStyle(.primary)
           .frame(width: 52, alignment: .trailing)
@@ -499,7 +500,7 @@ struct ContentView: View {
           .offset(x: max(markerX - 5, 0))
 
         if let previewTime {
-          Text(formattedTime(previewTime))
+          Text(previewTime.playbackText)
             .font(.system(size: 11, weight: .semibold, design: .monospaced))
             .foregroundStyle(.white)
             .padding(.horizontal, 8)
@@ -718,7 +719,7 @@ struct ContentView: View {
     }
 
     fullscreenSubtitleHideWorkItem = workItem
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.14, execute: workItem)
+    DispatchQueue.main.asyncAfter(deadline: .now() + fullscreenSubtitleHideDelay, execute: workItem)
   }
 
   private func resetFullscreenSubtitlePanelState() {
@@ -727,21 +728,6 @@ struct ContentView: View {
     isHoveringFullscreenSubtitleHotspot = false
     isHoveringFullscreenSubtitlePanel = false
     isFullscreenSubtitlePanelVisible = false
-  }
-
-  private func formattedTime(_ seconds: TimeInterval) -> String {
-    guard seconds.isFinite else { return "00:00" }
-
-    let totalSeconds = max(Int(seconds.rounded(.down)), 0)
-    let hours = totalSeconds / 3600
-    let minutes = (totalSeconds % 3600) / 60
-    let remainderSeconds = totalSeconds % 60
-
-    if hours > 0 {
-      return String(format: "%d:%02d:%02d", hours, minutes, remainderSeconds)
-    }
-
-    return String(format: "%02d:%02d", minutes, remainderSeconds)
   }
 
   private func playbackRateLabel(for rate: Double) -> String {

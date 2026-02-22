@@ -248,7 +248,8 @@ final class PlayerViewModelProgressTests: XCTestCase {
   }
 
   private func drainMainActorTasks() async {
-    await Task.yield()
-    await Task.yield()
+    for _ in 0..<10 {
+      await Task.yield()
+    }
   }
 }

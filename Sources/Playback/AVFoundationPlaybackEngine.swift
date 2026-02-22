@@ -51,6 +51,7 @@ final class AVFoundationPlaybackEngine: PlaybackEngine {
     let item = AVPlayerItem(url: url)
     player.replaceCurrentItem(with: item)
     applyNativeSubtitleRenderingSelection(for: item)
+    scheduleNativeSubtitleRenderingSelectionWhenReady(for: item)
 
     if autoplay {
       player.playImmediately(atRate: preferredRate)
@@ -186,6 +187,27 @@ final class AVFoundationPlaybackEngine: PlaybackEngine {
       item.selectMediaOptionAutomatically(in: group)
     } else {
       item.select(nil, in: group)
+    }
+  }
+
+  private func scheduleNativeSubtitleRenderingSelectionWhenReady(for item: AVPlayerItem) {
+    Task { [weak self, weak item] in
+      guard
+        let self,
+        let item
+      else {
+        return
+      }
+
+      _ = try? await item.asset.load(.availableMediaCharacteristicsWithMediaSelectionOptions)
+
+      await MainActor.run {
+        guard item == self.player.currentItem else {
+          return
+        }
+
+        self.applyNativeSubtitleRenderingSelection(for: item)
+      }
     }
   }
 }

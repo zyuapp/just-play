@@ -92,13 +92,12 @@ final class VLCPlaybackEngine: NSObject, PlaybackEngine {
   }
 
   func setNativeSubtitleRenderingEnabled(_ enabled: Bool) {
-    let wasEnabled = nativeSubtitlePolicy.isNativeRenderingEnabled
     let commands = nativeSubtitlePolicy.setNativeRenderingEnabled(
       enabled,
       currentTrackIndex: mediaPlayer.currentVideoSubTitleIndex
     )
 
-    guard wasEnabled != nativeSubtitlePolicy.isNativeRenderingEnabled else {
+    guard !commands.isEmpty else {
       return
     }
 
