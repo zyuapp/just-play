@@ -22,7 +22,7 @@ build:
 test:
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -destination '$(DESTINATION)' test
 
-run:
+run: generate
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -destination '$(DESTINATION)' -derivedDataPath $(DERIVED_DATA) build && open "$(APP_BUNDLE)"
 
 install:
