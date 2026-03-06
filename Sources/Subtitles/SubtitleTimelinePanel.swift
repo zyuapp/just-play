@@ -10,6 +10,7 @@ struct SubtitleTimelinePanel: View {
   let cues: [SubtitleCue]
   let activeCueIndex: Int?
   let activeSubtitleFileName: String?
+  let onAddSubtitle: () -> Void
   let onSelectCue: (Int) -> Void
 
   @State private var searchQuery = ""
@@ -54,6 +55,15 @@ struct SubtitleTimelinePanel: View {
         Spacer(minLength: 8)
 
         Button {
+          onAddSubtitle()
+        } label: {
+          Image(systemName: "plus")
+            .font(.system(size: 13, weight: .semibold))
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+
+        Button {
           jumpToCurrentCue(using: proxy)
         } label: {
           Image(systemName: "scope")
@@ -61,7 +71,6 @@ struct SubtitleTimelinePanel: View {
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
-        .help("Jump to current subtitle")
         .disabled(activeCueIndex == nil)
       }
 
@@ -147,4 +156,5 @@ struct SubtitleTimelinePanel: View {
       proxy.scrollTo(activeCueIndex, anchor: .center)
     }
   }
+
 }

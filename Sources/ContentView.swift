@@ -61,6 +61,7 @@ struct ContentView: View {
             subtitleCues: viewModel.subtitleTimelineCues,
             activeSubtitleCueIndex: viewModel.activeSubtitleCueIndex,
             activeSubtitleFileName: viewModel.activeSubtitleFileName,
+            onAddSubtitle: viewModel.openSubtitlePanel,
             onSelectSubtitleCue: viewModel.seekToSubtitleCue
           )
           .padding(16)
@@ -196,6 +197,7 @@ struct ContentView: View {
             cues: viewModel.subtitleTimelineCues,
             activeCueIndex: viewModel.activeSubtitleCueIndex,
             activeSubtitleFileName: viewModel.activeSubtitleFileName,
+            onAddSubtitle: viewModel.openSubtitlePanel,
             onSelectCue: viewModel.seekToSubtitleCue
           )
           .padding(14)

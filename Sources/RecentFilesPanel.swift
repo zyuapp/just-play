@@ -17,6 +17,7 @@ struct RecentFilesPanel: View {
   let subtitleCues: [SubtitleCue]
   let activeSubtitleCueIndex: Int?
   let activeSubtitleFileName: String?
+  let onAddSubtitle: () -> Void
   let onSelectSubtitleCue: (Int) -> Void
 
   @State private var selectedTab: PanelTab = .recent
@@ -97,6 +98,7 @@ struct RecentFilesPanel: View {
       cues: subtitleCues,
       activeCueIndex: activeSubtitleCueIndex,
       activeSubtitleFileName: activeSubtitleFileName,
+      onAddSubtitle: onAddSubtitle,
       onSelectCue: onSelectSubtitleCue
     )
   }
