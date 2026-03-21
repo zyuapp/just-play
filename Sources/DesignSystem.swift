@@ -68,8 +68,41 @@ private struct ShadowModifier: ViewModifier {
   }
 }
 
+struct MaterialSubtleBorder: ViewModifier {
+  let radius: CGFloat
+
+  func body(content: Content) -> some View {
+    content
+      .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+      .overlay {
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
+          .stroke(DS.Colors.borderSubtle, lineWidth: DS.hairline)
+      }
+  }
+}
+
+struct MaterialLeadingBorder: ViewModifier {
+  func body(content: Content) -> some View {
+    content
+      .background(.ultraThinMaterial)
+      .overlay(alignment: .leading) {
+        Rectangle()
+          .fill(DS.Colors.borderSubtle)
+          .frame(width: DS.hairline)
+      }
+  }
+}
+
 extension View {
   func dsModifier(_ modifier: some ViewModifier) -> some View {
     self.modifier(modifier)
+  }
+
+  func dsMaterialBorder(radius: CGFloat) -> some View {
+    modifier(MaterialSubtleBorder(radius: radius))
+  }
+
+  func dsMaterialLeadingBorder() -> some View {
+    modifier(MaterialLeadingBorder())
   }
 }

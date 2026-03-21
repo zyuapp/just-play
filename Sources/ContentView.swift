@@ -65,12 +65,7 @@ struct ContentView: View {
           .padding(DS.Spacing.xl)
           .frame(width: 320)
           .frame(maxHeight: .infinity, alignment: .topLeading)
-          .background(.ultraThinMaterial)
-          .overlay(alignment: .leading) {
-            Rectangle()
-              .fill(DS.Colors.borderSubtle)
-              .frame(width: DS.hairline)
-          }
+          .dsMaterialLeadingBorder()
           .transition(.move(edge: .trailing).combined(with: .opacity))
         }
       }
@@ -206,12 +201,7 @@ struct ContentView: View {
           .padding(DS.Spacing.lg)
           .frame(width: 360)
           .frame(maxHeight: .infinity, alignment: .topLeading)
-          .background(.ultraThinMaterial)
-          .overlay(alignment: .leading) {
-            Rectangle()
-              .fill(DS.Colors.borderSubtle)
-              .frame(width: DS.hairline)
-          }
+          .dsMaterialLeadingBorder()
           .transition(.move(edge: .trailing).combined(with: .opacity))
           .onHover(perform: updateFullscreenSubtitlePanelHover)
         }
@@ -246,6 +236,11 @@ struct ContentView: View {
       .onHover { hovering in
         isHoveringFullscreenControlsRegion = hovering
       }
+      .onChange(of: isHoveringFullscreenControlsRegion) { collapsed in
+        if !collapsed {
+          isSeekBarHovered = false
+        }
+      }
       .animation(DS.Anim.controlReveal, value: isHoveringFullscreenControlsRegion)
     }
   }
@@ -263,11 +258,7 @@ struct ContentView: View {
         .multilineTextAlignment(.center)
         .padding(.horizontal, DS.Spacing.xl)
         .padding(.vertical, 10)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DS.Radii.card, style: .continuous))
-        .overlay {
-          RoundedRectangle(cornerRadius: DS.Radii.card, style: .continuous)
-            .stroke(DS.Colors.borderSubtle, lineWidth: DS.hairline)
-        }
+        .dsMaterialBorder(radius: DS.Radii.card)
         .padding(.horizontal, 28)
         .padding(.bottom, 26)
         .shadow(color: .black.opacity(0.35), radius: 6, x: 0, y: 2)
@@ -322,11 +313,7 @@ struct ContentView: View {
     }
     .padding(.horizontal, 28)
     .padding(.vertical, 24)
-    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DS.Radii.player, style: .continuous))
-    .overlay {
-      RoundedRectangle(cornerRadius: DS.Radii.player, style: .continuous)
-        .stroke(DS.Colors.borderSubtle, lineWidth: DS.hairline)
-    }
+    .dsMaterialBorder(radius: DS.Radii.player)
   }
 
   private var controlsView: some View {
@@ -462,11 +449,7 @@ struct ContentView: View {
     }
     .padding(.horizontal, DS.Spacing.lg)
     .padding(.vertical, DS.Spacing.md)
-    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DS.Radii.controlBar, style: .continuous))
-    .overlay {
-      RoundedRectangle(cornerRadius: DS.Radii.controlBar, style: .continuous)
-        .stroke(DS.Colors.borderSubtle, lineWidth: DS.hairline)
-    }
+    .dsMaterialBorder(radius: DS.Radii.controlBar)
     .dsModifier(DS.Shadows.controlBar())
   }
 
@@ -575,19 +558,15 @@ struct ContentView: View {
           .scaleEffect(thumbVisible ? 1 : 0.01)
           .opacity(thumbVisible ? 1 : 0)
 
-        if let previewTime {
+          if let previewTime {
           Text(previewTime.playbackText)
             .font(.system(size: 11, weight: .semibold, design: .monospaced))
             .foregroundStyle(.white)
             .padding(.horizontal, DS.Spacing.md)
             .padding(.vertical, DS.Spacing.xs)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DS.Radii.seekPreview, style: .continuous))
-            .overlay {
-              RoundedRectangle(cornerRadius: DS.Radii.seekPreview, style: .continuous)
-                .stroke(DS.Colors.borderSubtle, lineWidth: DS.hairline)
-            }
+            .dsMaterialBorder(radius: DS.Radii.seekPreview)
             .position(x: previewCenterX, y: -8)
-        }
+          }
       }
       .frame(height: 22)
       .contentShape(Rectangle())
