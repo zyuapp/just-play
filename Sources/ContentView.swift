@@ -102,6 +102,7 @@ struct ContentView: View {
       seekPosition = max(newValue, 0)
     }
     .onChange(of: isFullscreen) { newValue in
+      isSeekBarHovered = false
       guard !newValue else { return }
       isHoveringFullscreenControlsRegion = false
       resetFullscreenSubtitlePanelState()
