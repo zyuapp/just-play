@@ -80,7 +80,7 @@ struct ContentView: View {
     .onAppear {
       syncFullscreenState()
       setupKeyboardMonitoring()
-      DispatchQueue.main.async {
+      Task { @MainActor in
         syncFullscreenState()
       }
     }

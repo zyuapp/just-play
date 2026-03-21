@@ -151,11 +151,11 @@ struct RecentFilesPanel: View {
 
       Spacer(minLength: DS.Spacing.sm)
 
-      actionIconButton(systemName: "arrow.uturn.backward.circle.fill", helpText: "Undo archive") {
+      ActionIconButton(systemName: "arrow.uturn.backward.circle.fill", helpText: "Undo archive") {
         onRestoreArchived(entry)
       }
 
-      actionIconButton(systemName: "trash.circle.fill", helpText: "Delete permanently") {
+      ActionIconButton(systemName: "trash.circle.fill", helpText: "Delete permanently") {
         onDeleteArchivedPermanently(entry)
       }
     }
@@ -166,10 +166,6 @@ struct RecentFilesPanel: View {
         .fill(DS.Colors.surfacePrimary)
     )
     .help(recentRelativeDateText(for: entry.lastOpenedAt))
-  }
-
-  private func actionIconButton(systemName: String, helpText: String, action: @escaping () -> Void) -> some View {
-    ActionIconButton(systemName: systemName, helpText: helpText, action: action)
   }
 
 }
