@@ -528,7 +528,8 @@ struct ContentView: View {
   }
 
   private var seekBar: some View {
-    let seekBarExpanded = isSeekBarHovered || isSeeking
+    let isSeekable = viewModel.playbackState.duration > 0
+    let seekBarExpanded = isSeekable && (isSeekBarHovered || isSeeking)
     let trackHeight: CGFloat = seekBarExpanded ? 6 : 3
     let thumbVisible = seekBarExpanded
 
@@ -549,7 +550,7 @@ struct ContentView: View {
 
         RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous)
           .fill(DS.Colors.seekFill)
-          .frame(width: max(width * playedRatio, trackHeight), height: trackHeight)
+          .frame(width: playedRatio > 0 ? max(width * playedRatio, trackHeight) : 0, height: trackHeight)
 
         Circle()
           .fill(DS.Colors.seekThumb)
@@ -572,7 +573,7 @@ struct ContentView: View {
       .frame(height: 22)
       .contentShape(Rectangle())
       .onHover { hovering in
-        isSeekBarHovered = hovering
+        isSeekBarHovered = isSeekable && hovering
       }
       .gesture(
         DragGesture(minimumDistance: 0)
