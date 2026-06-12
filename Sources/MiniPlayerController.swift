@@ -6,8 +6,11 @@ final class MiniPlayerController: NSObject, ObservableObject {
   @Published private(set) var isPresented = false
 
   private var panel: NSPanel?
+  private weak var presentingWindow: NSWindow?
 
-  func present(viewModel: PlayerViewModel) {
+  func present(viewModel: PlayerViewModel, sourceWindow: NSWindow?) {
+    presentingWindow = sourceWindow
+
     if let panel {
       isPresented = true
       panel.orderFrontRegardless()
@@ -16,6 +19,8 @@ final class MiniPlayerController: NSObject, ObservableObject {
 
     isPresented = true
 
+    // Flip SwiftUI state first so the inline NSViewRepresentable releases the
+    // playback view before the floating panel hosts that same AppKit view.
     Task { @MainActor [weak self, weak viewModel] in
       guard
         let self,
@@ -40,19 +45,11 @@ final class MiniPlayerController: NSObject, ObservableObject {
   }
 
   func dockToMainWindow() {
-    let closingPanel = panel
+    let windowToRestore = presentingWindow
     close()
 
-    let mainWindow = NSApplication.shared.windows.first { window in
-      if let closingPanel, window === closingPanel {
-        return false
-      }
-
-      return window.canBecomeMain
-    }
-
     NSApplication.shared.activate(ignoringOtherApps: true)
-    mainWindow?.makeKeyAndOrderFront(nil)
+    windowToRestore?.makeKeyAndOrderFront(nil)
   }
 
   private func makePanel(viewModel: PlayerViewModel) {
@@ -106,6 +103,7 @@ extension MiniPlayerController: NSWindowDelegate {
   func windowWillClose(_ notification: Notification) {
     panel?.contentViewController = nil
     panel = nil
+    presentingWindow = nil
     isPresented = false
   }
 }
@@ -121,7 +119,12 @@ private struct MiniPlayerPanelContent: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
 
-      subtitleOverlay
+      SubtitleOverlayView(
+        text: viewModel.subtitleText,
+        isVisible: viewModel.currentURL != nil,
+        density: .compact
+      )
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
 
       miniControls
         .padding(.horizontal, 10)
@@ -131,43 +134,16 @@ private struct MiniPlayerPanelContent: View {
     .background(Color.black)
   }
 
-  @ViewBuilder
-  private var subtitleOverlay: some View {
-    if
-      let subtitleText = viewModel.subtitleText,
-      !subtitleText.isEmpty,
-      viewModel.currentURL != nil
-    {
-      SubtitleTextRenderer.render(subtitleText)
-        .font(.system(size: 18, weight: .semibold, design: .rounded))
-        .foregroundStyle(.white)
-        .multilineTextAlignment(.center)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .background(.black.opacity(0.68), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .padding(.horizontal, 18)
-        .padding(.bottom, 54)
-        .shadow(color: .black.opacity(0.35), radius: 6, x: 0, y: 2)
-    }
-  }
-
   private var miniControls: some View {
     HStack(spacing: 8) {
-      Button(action: viewModel.togglePlayPause) {
-        Image(systemName: viewModel.playbackState.isPlaying ? "pause.fill" : "play.fill")
-      }
-      .buttonStyle(.borderedProminent)
-      .disabled(viewModel.currentURL == nil)
-
-      Button(action: viewModel.skipBackward) {
-        Image(systemName: "gobackward.10")
-      }
-      .disabled(viewModel.currentURL == nil)
-
-      Button(action: viewModel.skipForward) {
-        Image(systemName: "goforward.10")
-      }
-      .disabled(viewModel.currentURL == nil)
+      PlaybackTransportButtons(
+        isPlaying: viewModel.playbackState.isPlaying,
+        isEnabled: viewModel.currentURL != nil,
+        usesSpaceShortcut: false,
+        onPlayPause: viewModel.togglePlayPause,
+        onSkipBackward: viewModel.skipBackward,
+        onSkipForward: viewModel.skipForward
+      )
 
       Spacer(minLength: 8)
 

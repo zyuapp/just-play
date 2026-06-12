@@ -5,7 +5,6 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
   @StateObject private var viewModel = PlayerViewModel()
-  @StateObject private var miniPlayerController = MiniPlayerController()
 
   @State private var isDropTargeted = false
   @State private var seekPosition: Double = 0
@@ -83,7 +82,6 @@ struct ContentView: View {
       }
     }
     .onDisappear {
-      miniPlayerController.close()
       teardownKeyboardMonitoring()
       resetFullscreenSubtitlePanelState()
     }
@@ -123,19 +121,10 @@ struct ContentView: View {
   }
 
   private var playerSurface: some View {
-    ZStack {
-      if miniPlayerController.isPresented {
-        miniPlayerPlaceholder
-      } else {
-        PlaybackEngineView(engine: viewModel.engine)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(Color.black)
-      }
-
-      if viewModel.currentURL == nil, !miniPlayerController.isPresented {
-        emptyStateView
-      }
-    }
+    PlayerSurfaceContainer(
+      viewModel: viewModel,
+      sourceWindow: currentWindow
+    )
     .clipShape(RoundedRectangle(cornerRadius: isFullscreen ? 0 : 18, style: .continuous))
     .overlay {
       if !isFullscreen {
@@ -148,9 +137,6 @@ struct ContentView: View {
       if isDropTargeted {
         dropIndicator
       }
-    }
-    .overlay(alignment: .bottom) {
-      subtitleOverlay
     }
     .overlay(alignment: .trailing) {
       fullscreenSubtitleOverlay
@@ -241,97 +227,18 @@ struct ContentView: View {
     }
   }
 
-  @ViewBuilder
-  private var subtitleOverlay: some View {
-    if
-      let subtitleText = viewModel.subtitleText,
-      !subtitleText.isEmpty,
-      viewModel.currentURL != nil
-    {
-      SubtitleTextRenderer.render(subtitleText)
-        .font(.system(size: 24, weight: .semibold, design: .rounded))
-        .foregroundStyle(.white)
-        .multilineTextAlignment(.center)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(.black.opacity(0.68), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .padding(.horizontal, 28)
-        .padding(.bottom, 26)
-        .shadow(color: .black.opacity(0.35), radius: 6, x: 0, y: 2)
-    }
-  }
-
-  private var emptyStateView: some View {
-    VStack(spacing: 12) {
-      Image(systemName: "play.square.stack.fill")
-        .resizable()
-        .scaledToFit()
-        .frame(width: 54, height: 54)
-        .foregroundStyle(.white.opacity(0.8))
-
-      Text("JustPlay")
-        .font(.title3.weight(.semibold))
-        .foregroundStyle(.white)
-
-      Text(viewModel.statusMessage)
-        .font(.subheadline)
-        .foregroundStyle(.white.opacity(0.7))
-        .multilineTextAlignment(.center)
-
-      Button("Open Video...") {
-        viewModel.openPanel()
-      }
-      .buttonStyle(.borderedProminent)
-    }
-    .padding(.horizontal, 28)
-    .padding(.vertical, 24)
-    .background(.black.opacity(0.52), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-  }
-
-  private var miniPlayerPlaceholder: some View {
-    VStack(spacing: 12) {
-      Image(systemName: "pip")
-        .resizable()
-        .scaledToFit()
-        .frame(width: 48, height: 48)
-        .foregroundStyle(.white.opacity(0.78))
-
-      Text(viewModel.currentURL?.lastPathComponent ?? "Mini Player")
-        .font(.subheadline.weight(.semibold))
-        .foregroundStyle(.white)
-        .lineLimit(1)
-
-      Button("Return to Main Window") {
-        miniPlayerController.close()
-      }
-      .buttonStyle(.borderedProminent)
-    }
-    .padding(.horizontal, 24)
-    .padding(.vertical, 20)
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(Color.black)
-  }
-
   private var controlsView: some View {
     let hasActiveMedia = viewModel.currentURL != nil
 
     return HStack(spacing: 8) {
-      Button(action: viewModel.togglePlayPause) {
-        Image(systemName: displayedIsPlaying ? "pause.fill" : "play.fill")
-      }
-      .buttonStyle(.borderedProminent)
-      .keyboardShortcut(.space, modifiers: [])
-      .disabled(!hasActiveMedia)
-
-      Button(action: viewModel.skipBackward) {
-        Image(systemName: "gobackward.10")
-      }
-      .disabled(!hasActiveMedia)
-
-      Button(action: viewModel.skipForward) {
-        Image(systemName: "goforward.10")
-      }
-      .disabled(!hasActiveMedia)
+      PlaybackTransportButtons(
+        isPlaying: displayedIsPlaying,
+        isEnabled: hasActiveMedia,
+        usesSpaceShortcut: true,
+        onPlayPause: viewModel.togglePlayPause,
+        onSkipBackward: viewModel.skipBackward,
+        onSkipForward: viewModel.skipForward
+      )
 
       HStack(spacing: 8) {
         Text(displayedCurrentTime.playbackText)
@@ -358,15 +265,6 @@ struct ContentView: View {
       .popover(isPresented: $isVolumePopoverPresented, arrowEdge: .top) {
         volumePopoverContent
       }
-
-      Button {
-        toggleMiniPlayer()
-      } label: {
-        Image(systemName: miniPlayerController.isPresented ? "pip.exit" : "pip.enter")
-      }
-      .buttonStyle(.bordered)
-      .help(miniPlayerController.isPresented ? "Return to Main Window" : "Open Mini Player")
-      .disabled(!hasActiveMedia)
 
       Menu {
         ForEach(playbackRateOptions, id: \.self) { rate in
@@ -709,14 +607,6 @@ struct ContentView: View {
 
   private func toggleFullscreen() {
     currentWindow()?.toggleFullScreen(nil)
-  }
-
-  private func toggleMiniPlayer() {
-    if miniPlayerController.isPresented {
-      miniPlayerController.close()
-    } else {
-      miniPlayerController.present(viewModel: viewModel)
-    }
   }
 
   private func syncFullscreenState(from window: NSWindow? = nil) {
