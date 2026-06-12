@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
   @StateObject private var viewModel = PlayerViewModel()
+  @StateObject private var miniPlayerController = MiniPlayerController()
 
   @State private var isDropTargeted = false
   @State private var seekPosition: Double = 0
@@ -82,6 +83,7 @@ struct ContentView: View {
       }
     }
     .onDisappear {
+      miniPlayerController.close()
       teardownKeyboardMonitoring()
       resetFullscreenSubtitlePanelState()
     }
@@ -122,11 +124,15 @@ struct ContentView: View {
 
   private var playerSurface: some View {
     ZStack {
-      PlaybackEngineView(engine: viewModel.engine)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black)
+      if miniPlayerController.isPresented {
+        miniPlayerPlaceholder
+      } else {
+        PlaybackEngineView(engine: viewModel.engine)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .background(Color.black)
+      }
 
-      if viewModel.currentURL == nil {
+      if viewModel.currentURL == nil, !miniPlayerController.isPresented {
         emptyStateView
       }
     }
@@ -282,6 +288,30 @@ struct ContentView: View {
     .background(.black.opacity(0.52), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
   }
 
+  private var miniPlayerPlaceholder: some View {
+    VStack(spacing: 12) {
+      Image(systemName: "pip")
+        .resizable()
+        .scaledToFit()
+        .frame(width: 48, height: 48)
+        .foregroundStyle(.white.opacity(0.78))
+
+      Text(viewModel.currentURL?.lastPathComponent ?? "Mini Player")
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(.white)
+        .lineLimit(1)
+
+      Button("Return to Main Window") {
+        miniPlayerController.close()
+      }
+      .buttonStyle(.borderedProminent)
+    }
+    .padding(.horizontal, 24)
+    .padding(.vertical, 20)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(Color.black)
+  }
+
   private var controlsView: some View {
     let hasActiveMedia = viewModel.currentURL != nil
 
@@ -328,6 +358,15 @@ struct ContentView: View {
       .popover(isPresented: $isVolumePopoverPresented, arrowEdge: .top) {
         volumePopoverContent
       }
+
+      Button {
+        toggleMiniPlayer()
+      } label: {
+        Image(systemName: miniPlayerController.isPresented ? "pip.exit" : "pip.enter")
+      }
+      .buttonStyle(.bordered)
+      .help(miniPlayerController.isPresented ? "Return to Main Window" : "Open Mini Player")
+      .disabled(!hasActiveMedia)
 
       Menu {
         ForEach(playbackRateOptions, id: \.self) { rate in
@@ -670,6 +709,14 @@ struct ContentView: View {
 
   private func toggleFullscreen() {
     currentWindow()?.toggleFullScreen(nil)
+  }
+
+  private func toggleMiniPlayer() {
+    if miniPlayerController.isPresented {
+      miniPlayerController.close()
+    } else {
+      miniPlayerController.present(viewModel: viewModel)
+    }
   }
 
   private func syncFullscreenState(from window: NSWindow? = nil) {
