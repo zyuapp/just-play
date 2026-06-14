@@ -17,6 +17,7 @@ struct ContentView: View {
   @State private var isHoveringFullscreenSubtitlePanel = false
   @State private var isFullscreenSubtitlePanelVisible = false
   @State private var isVolumePopoverPresented = false
+  @State private var fullscreenCursorAutoHideController = FullscreenCursorAutoHideController()
   @State private var keyboardMonitor: Any? = nil
   @State private var isSidebarVisible = true
   @State private var fullscreenSubtitleHideWorkItem: DispatchWorkItem?
@@ -83,13 +84,14 @@ struct ContentView: View {
     }
     .onDisappear {
       teardownKeyboardMonitoring()
+      fullscreenCursorAutoHideController.stop()
       resetFullscreenSubtitlePanelState()
     }
-    .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { _ in
-      isFullscreen = true
+    .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { notification in
+      syncFullscreenState(from: notification.object as? NSWindow)
     }
-    .onReceive(NotificationCenter.default.publisher(for: NSWindow.didExitFullScreenNotification)) { _ in
-      isFullscreen = false
+    .onReceive(NotificationCenter.default.publisher(for: NSWindow.didExitFullScreenNotification)) { notification in
+      syncFullscreenState(from: notification.object as? NSWindow)
     }
     .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
       syncFullscreenState(from: notification.object as? NSWindow)
@@ -104,9 +106,7 @@ struct ContentView: View {
       seekPosition = max(newValue, 0)
     }
     .onChange(of: isFullscreen) { newValue in
-      guard !newValue else { return }
-      isHoveringFullscreenControlsRegion = false
-      resetFullscreenSubtitlePanelState()
+      updateFullscreenDependentState(isFullscreen: newValue)
     }
     .onChange(of: viewModel.subtitleTimelineCues.isEmpty) { isEmpty in
       if isEmpty {
@@ -620,6 +620,16 @@ struct ContentView: View {
 
   private func currentWindow() -> NSWindow? {
     NSApplication.shared.mainWindow ?? NSApplication.shared.keyWindow
+  }
+
+  private func updateFullscreenDependentState(isFullscreen: Bool) {
+    if isFullscreen {
+      fullscreenCursorAutoHideController.start(window: currentWindow())
+    } else {
+      fullscreenCursorAutoHideController.stop()
+      isHoveringFullscreenControlsRegion = false
+      resetFullscreenSubtitlePanelState()
+    }
   }
 
   private func updateFullscreenSubtitleHotspotHover(_ hovering: Bool) {
