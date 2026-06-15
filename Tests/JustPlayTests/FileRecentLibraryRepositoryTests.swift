@@ -90,6 +90,35 @@ final class FileRecentLibraryRepositoryTests: XCTestCase {
     XCTAssertTrue(loaded.archivedEntries.isEmpty)
   }
 
+  func testDecodesLegacyRemoteDownloadedSubtitleSourceAsManual() throws {
+    let bundleID = makeBundleID()
+    let json = """
+    {
+      "schemaVersion": 2,
+      "entries": [
+        {
+          "filePath": "/movies/with-subs.mp4",
+          "lastPlaybackPosition": 10,
+          "duration": 100,
+          "lastOpenedAt": "2026-01-01T00:00:00Z",
+          "selectedSubtitle": {
+            "filePath": "/movies/with-subs.srt",
+            "displayName": "with-subs.srt",
+            "source": "remoteDownloaded"
+          }
+        }
+      ]
+    }
+    """
+    try writeStoreFile(bundleIdentifier: bundleID, contents: Data(json.utf8))
+
+    let loaded = makeStore(bundleID).loadState()
+
+    XCTAssertEqual(loaded.recentEntries.count, 1)
+    XCTAssertEqual(loaded.recentEntries.first?.selectedSubtitle?.displayName, "with-subs.srt")
+    XCTAssertEqual(loaded.recentEntries.first?.selectedSubtitle?.source, .manual)
+  }
+
   func testLoadReturnsEmptyForCorruptData() throws {
     let bundleID = makeBundleID()
     try writeStoreFile(bundleIdentifier: bundleID, contents: Data("not json".utf8))
