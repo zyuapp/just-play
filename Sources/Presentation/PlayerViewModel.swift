@@ -54,6 +54,7 @@ final class PlayerViewModel: ObservableObject {
   private let noteRecentDocumentURL: (URL) -> Void
   private let supportedFileExtensions = Set(["mp4", "m4v", "mkv"])
   private let maxRecentEntries = 50
+  private let resumePolicy = ResumePolicy()
 
   private var loadedSubtitleTracks: [LoadedSubtitleTrack] = []
   private var subtitleCues: [SubtitleCue] = []
@@ -505,25 +506,7 @@ final class PlayerViewModel: ObservableObject {
   }
 
   private func resumePosition(for url: URL) -> TimeInterval? {
-    guard let entry = existingEntry(for: url) else {
-      return nil
-    }
-
-    guard entry.lastPlaybackPosition > 0 else {
-      return nil
-    }
-
-    if entry.duration > 0 {
-      let progress = entry.lastPlaybackPosition / entry.duration
-      if progress >= 0.98 {
-        return nil
-      }
-
-      let cappedPosition = min(entry.lastPlaybackPosition, max(entry.duration - 1, 0))
-      return cappedPosition > 0 ? cappedPosition : nil
-    }
-
-    return entry.lastPlaybackPosition
+    existingEntry(for: url)?.resumePoint(using: resumePolicy)?.seconds
   }
 
   private func resetSubtitleStateForCurrentVideo() {
