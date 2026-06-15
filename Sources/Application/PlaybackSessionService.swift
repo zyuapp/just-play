@@ -1,4 +1,3 @@
-import AppKit
 import Combine
 import Foundation
 
@@ -23,14 +22,12 @@ final class PlaybackSessionService: ObservableObject {
   private var currentOpenedAt = Date()
   private var observations: Set<AnyCancellable> = []
   private var playbackProgressTimer: Timer?
-  private var appWillTerminateObserver: NSObjectProtocol?
 
   init(
     engine: PlaybackEngine,
     library: LibraryService,
     subtitles: SubtitleService,
     enableProgressPersistenceTimer: Bool = true,
-    observeApplicationWillTerminate: Bool = true,
     restorePreviousSessionOnLaunch: Bool = true,
     noteRecentDocumentURL: @escaping (URL) -> Void
   ) {
@@ -73,18 +70,6 @@ final class PlaybackSessionService: ObservableObject {
       startPlaybackProgressTimer()
     }
 
-    if observeApplicationWillTerminate {
-      appWillTerminateObserver = NotificationCenter.default.addObserver(
-        forName: NSApplication.willTerminateNotification,
-        object: nil,
-        queue: .main
-      ) { [weak self] _ in
-        Task { @MainActor in
-          self?.persistCurrentPlaybackProgress(force: true)
-        }
-      }
-    }
-
     if restorePreviousSessionOnLaunch {
       restoreMostRecentPlaybackSessionIfAvailable()
     }
@@ -92,10 +77,6 @@ final class PlaybackSessionService: ObservableObject {
 
   deinit {
     playbackProgressTimer?.invalidate()
-
-    if let appWillTerminateObserver {
-      NotificationCenter.default.removeObserver(appWillTerminateObserver)
-    }
   }
 
   func open(url: URL, autoplay: Bool = true) {
@@ -208,6 +189,10 @@ final class PlaybackSessionService: ObservableObject {
     if persistImmediately {
       persistCurrentPlaybackProgress(force: true, overridePosition: clampedSeconds)
     }
+  }
+
+  func flushProgress() {
+    persistCurrentPlaybackProgress(force: true)
   }
 
   private func isSupported(url: URL) -> Bool {

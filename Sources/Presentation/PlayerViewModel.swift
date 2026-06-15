@@ -48,6 +48,7 @@ final class PlayerViewModel: ObservableObject {
   private let library: LibraryService
   private let session: PlaybackSessionService
   private var sessionObservation: AnyCancellable?
+  private var appWillTerminateObserver: NSObjectProtocol?
 
   init(
     engine: PlaybackEngine = PlaybackEngineFactory.makeDefaultEngine(),
@@ -79,7 +80,6 @@ final class PlayerViewModel: ObservableObject {
       library: library,
       subtitles: subtitleService,
       enableProgressPersistenceTimer: enableProgressPersistenceTimer,
-      observeApplicationWillTerminate: observeApplicationWillTerminate,
       restorePreviousSessionOnLaunch: restorePreviousSessionOnLaunch,
       noteRecentDocumentURL: resolvedNoteRecentDocumentURL
     )
@@ -90,6 +90,24 @@ final class PlayerViewModel: ObservableObject {
 
     sessionObservation = session.objectWillChange.sink { [weak self] _ in
       self?.objectWillChange.send()
+    }
+
+    if observeApplicationWillTerminate {
+      appWillTerminateObserver = NotificationCenter.default.addObserver(
+        forName: NSApplication.willTerminateNotification,
+        object: nil,
+        queue: .main
+      ) { [weak self] _ in
+        Task { @MainActor in
+          self?.session.flushProgress()
+        }
+      }
+    }
+  }
+
+  deinit {
+    if let appWillTerminateObserver {
+      NotificationCenter.default.removeObserver(appWillTerminateObserver)
     }
   }
 
