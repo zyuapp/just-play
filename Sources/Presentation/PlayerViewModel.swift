@@ -58,11 +58,7 @@ final class PlayerViewModel: ObservableObject {
 
   private var loadedSubtitleTracks: [LoadedSubtitleTrack] = []
   private var subtitleCues: [SubtitleCue] = []
-  private var pendingResumeSeek: TimeInterval?
-  private var shouldPrimePlaybackForResume = false
-  private var shouldPauseAfterResumeSeek = false
-  private var pendingPausedSeekTime: TimeInterval?
-  private let pausedSeekConfirmationTolerance: TimeInterval = 0.35
+  private var resumeCoordinator = ResumeCoordinator()
   private var currentOpenedAt = Date()
 
   private var playbackProgressTimer: Timer?
@@ -142,15 +138,9 @@ final class PlayerViewModel: ObservableObject {
 
     currentURL = normalizedURL
     currentOpenedAt = Date()
-    shouldPrimePlaybackForResume = false
-    shouldPauseAfterResumeSeek = false
-    pendingPausedSeekTime = nil
 
     let resumePosition = resumePosition(for: normalizedURL)
-    pendingResumeSeek = resumePosition
-    if !autoplay, resumePosition != nil {
-      shouldPrimePlaybackForResume = true
-    }
+    resumeCoordinator.beginResume(toPosition: resumePosition, autoplay: autoplay)
 
     if resumePosition != nil {
       statusMessage = "\(normalizedURL.lastPathComponent) (resuming)"
@@ -281,14 +271,7 @@ final class PlayerViewModel: ObservableObject {
       clampedSeconds = max(seconds, 0)
     }
 
-    pendingResumeSeek = nil
-    shouldPrimePlaybackForResume = false
-    shouldPauseAfterResumeSeek = false
-    if playbackState.isPlaying {
-      pendingPausedSeekTime = nil
-    } else {
-      pendingPausedSeekTime = clampedSeconds
-    }
+    resumeCoordinator.userDidSeek(to: clampedSeconds, isPlaying: playbackState.isPlaying)
 
     engine.seek(to: clampedSeconds)
     playbackState.currentTime = clampedSeconds
@@ -320,66 +303,31 @@ final class PlayerViewModel: ObservableObject {
   }
 
   private func handlePlaybackStateChange(_ state: PlaybackState) {
-    var resolvedState = state
+    let resolution = resumeCoordinator.reconcile(with: state)
 
-    if let pendingPausedSeekTime {
-      if resolvedState.isPlaying {
-        self.pendingPausedSeekTime = nil
-      } else if abs(resolvedState.currentTime - pendingPausedSeekTime) <= pausedSeekConfirmationTolerance {
-        self.pendingPausedSeekTime = nil
-      } else {
-        resolvedState.currentTime = pendingPausedSeekTime
+    var resolvedState = state
+    resolvedState.currentTime = resolution.displayTime
+    playbackState = resolvedState
+
+    apply(resolution.actions)
+    updateSubtitleText(for: playbackState.currentTime)
+  }
+
+  private func apply(_ actions: [ResumeCoordinator.Action]) {
+    for action in actions {
+      switch action {
+      case let .seek(time):
+        engine.seek(to: time)
+      case .play:
+        engine.play()
+      case .pause:
+        engine.pause()
       }
     }
-
-    playbackState = resolvedState
-    applyPendingResumeSeekIfNeeded(with: resolvedState)
-    updateSubtitleText(for: playbackState.currentTime)
   }
 
   private func handlePlaybackDidFinish() {
     clearResumePositionForCurrentFile()
-  }
-
-  private func applyPendingResumeSeekIfNeeded(with state: PlaybackState) {
-    guard let pendingResumeSeek else {
-      return
-    }
-
-    let seekTarget: TimeInterval
-    if state.duration > 0 {
-      seekTarget = min(max(pendingResumeSeek, 0), max(state.duration - 1, 0))
-    } else {
-      seekTarget = max(pendingResumeSeek, 0)
-    }
-
-    guard seekTarget > 0 else {
-      self.pendingResumeSeek = nil
-      shouldPrimePlaybackForResume = false
-      shouldPauseAfterResumeSeek = false
-      return
-    }
-
-    let tolerance: TimeInterval = 0.35
-    if abs(state.currentTime - seekTarget) <= tolerance {
-      self.pendingResumeSeek = nil
-
-      if shouldPauseAfterResumeSeek {
-        shouldPauseAfterResumeSeek = false
-        engine.pause()
-      }
-
-      return
-    }
-
-    engine.seek(to: seekTarget)
-    playbackState.currentTime = seekTarget
-
-    if shouldPrimePlaybackForResume, !state.isPlaying {
-      shouldPrimePlaybackForResume = false
-      shouldPauseAfterResumeSeek = true
-      engine.play()
-    }
   }
 
   private func startPlaybackProgressTimer() {
