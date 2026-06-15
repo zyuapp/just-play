@@ -35,19 +35,35 @@ final class RecentPlaybackStoreTests: XCTestCase {
     XCTAssertTrue(state.archivedEntries.isEmpty)
   }
 
-  func testEntriesAreSortedByLastOpenedDescending() {
+  func testLoadSortsEntriesByLastOpenedDescending() throws {
     let bundleID = makeBundleID()
-    let entries = [
-      makeEntry(filePath: "/movies/old.mp4", position: 0, duration: 10, openedAt: date(100)),
-      makeEntry(filePath: "/movies/new.mp4", position: 0, duration: 10, openedAt: date(300)),
-      makeEntry(filePath: "/movies/mid.mp4", position: 0, duration: 10, openedAt: date(200))
-    ]
-
-    makeStore(bundleID).saveState(.init(recentEntries: entries, archivedEntries: []))
+    let json = payloadJSON(
+      schemaVersion: 2,
+      entries: [
+        ("/movies/old.mp4", "2026-01-01T00:00:00Z"),
+        ("/movies/new.mp4", "2026-03-01T00:00:00Z"),
+        ("/movies/mid.mp4", "2026-02-01T00:00:00Z")
+      ]
+    )
+    try writeStoreFile(bundleIdentifier: bundleID, contents: Data(json.utf8))
 
     let loaded = makeStore(bundleID).loadState()
 
     XCTAssertEqual(loaded.recentEntries.map(\.filePath), ["/movies/new.mp4", "/movies/mid.mp4", "/movies/old.mp4"])
+  }
+
+  func testMigratesLegacyStoreWhenCurrentFileMissing() throws {
+    let currentBundleID = makeBundleID()
+    let legacyBundleID = makeBundleID()
+    let json = payloadJSON(
+      schemaVersion: 2,
+      entries: [("/movies/legacy-only.mp4", "2026-01-01T00:00:00Z")]
+    )
+    try writeStoreFile(bundleIdentifier: legacyBundleID, contents: Data(json.utf8))
+
+    let store = RecentPlaybackStore(bundleIdentifier: currentBundleID, legacyBundleIdentifier: legacyBundleID)
+
+    XCTAssertEqual(store.loadState().recentEntries.map(\.filePath), ["/movies/legacy-only.mp4"])
   }
 
   func testLoadsLegacyPayloadWithoutArchivedEntries() throws {
@@ -115,6 +131,26 @@ final class RecentPlaybackStoreTests: XCTestCase {
 
   private func date(_ secondsSinceReference: TimeInterval) -> Date {
     Date(timeIntervalSinceReferenceDate: secondsSinceReference)
+  }
+
+  private func payloadJSON(schemaVersion: Int, entries: [(filePath: String, lastOpenedAt: String)]) -> String {
+    let entryObjects = entries.map { entry in
+      """
+      {
+        "filePath": "\(entry.filePath)",
+        "lastPlaybackPosition": 0,
+        "duration": 10,
+        "lastOpenedAt": "\(entry.lastOpenedAt)"
+      }
+      """
+    }.joined(separator: ",\n")
+
+    return """
+    {
+      "schemaVersion": \(schemaVersion),
+      "entries": [\(entryObjects)]
+    }
+    """
   }
 
   private func makeEntry(
