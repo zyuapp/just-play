@@ -8,21 +8,7 @@ struct RecentPlaybackEntry: Codable, Identifiable {
     let source: SubtitleSource
 
     var resolvedURL: URL {
-      guard let bookmarkData else {
-        return URL(fileURLWithPath: filePath)
-      }
-
-      var isStale = false
-      if let url = try? URL(
-        resolvingBookmarkData: bookmarkData,
-        options: [.withoutUI],
-        relativeTo: nil,
-        bookmarkDataIsStale: &isStale
-      ) {
-        return url
-      }
-
-      return URL(fileURLWithPath: filePath)
+      BookmarkResolver.resolveURL(bookmarkData: bookmarkData, fallbackPath: filePath)
     }
   }
 
@@ -44,21 +30,7 @@ struct RecentPlaybackEntry: Codable, Identifiable {
   }
 
   var resolvedURL: URL {
-    guard let bookmarkData else {
-      return URL(fileURLWithPath: filePath)
-    }
-
-    var isStale = false
-    if let url = try? URL(
-      resolvingBookmarkData: bookmarkData,
-      options: [.withoutUI],
-      relativeTo: nil,
-      bookmarkDataIsStale: &isStale
-    ) {
-      return url
-    }
-
-    return URL(fileURLWithPath: filePath)
+    BookmarkResolver.resolveURL(bookmarkData: bookmarkData, fallbackPath: filePath)
   }
 
   var progress: Double {
