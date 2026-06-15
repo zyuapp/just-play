@@ -50,7 +50,7 @@ final class PlayerViewModel: ObservableObject {
     selectedSubtitleTrackID != nil
   }
 
-  private let recentPlaybackStore: RecentPlaybackStore
+  private let recentPlaybackStore: RecentLibraryRepository
   private let noteRecentDocumentURL: (URL) -> Void
   private let supportedFileExtensions = Set(["mp4", "m4v", "mkv"])
   private let maxRecentEntries = 50
@@ -69,7 +69,7 @@ final class PlayerViewModel: ObservableObject {
 
   init(
     engine: PlaybackEngine = PlaybackEngineFactory.makeDefaultEngine(),
-    recentPlaybackStore: RecentPlaybackStore = RecentPlaybackStore(),
+    recentPlaybackStore: RecentLibraryRepository = FileRecentLibraryRepository(),
     enableProgressPersistenceTimer: Bool = true,
     observeApplicationWillTerminate: Bool = true,
     restorePreviousSessionOnLaunch: Bool = true,
@@ -492,7 +492,7 @@ final class PlayerViewModel: ObservableObject {
   }
 
   private func saveRecentsState() {
-    let state = RecentPlaybackStore.State(
+    let state = RecentLibraryState(
       recentEntries: recentEntries,
       archivedEntries: archivedEntries
     )

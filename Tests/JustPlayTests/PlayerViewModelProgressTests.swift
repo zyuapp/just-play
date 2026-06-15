@@ -173,7 +173,7 @@ final class PlayerViewModelProgressTests: XCTestCase {
 
   private func makeViewModel(
     engine: TestPlaybackEngine,
-    store: RecentPlaybackStore,
+    store: InMemoryRecentLibraryRepository,
     restorePreviousSessionOnLaunch: Bool
   ) -> PlayerViewModel {
     PlayerViewModel(
@@ -202,22 +202,11 @@ final class PlayerViewModelProgressTests: XCTestCase {
     return entries.first { $0.filePath == normalizedPath }
   }
 
-  private func makeStore() -> RecentPlaybackStore {
-    let bundleID = "com.justplay.tests.\(UUID().uuidString)"
-    cleanupURLs.append(storeDirectoryURL(bundleIdentifier: bundleID))
-    return RecentPlaybackStore(fileManager: .default, bundleIdentifier: bundleID)
+  private func makeStore() -> InMemoryRecentLibraryRepository {
+    InMemoryRecentLibraryRepository()
   }
 
-  private func storeDirectoryURL(bundleIdentifier: String) -> URL {
-    let appSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-      ?? URL(fileURLWithPath: NSHomeDirectory())
-      .appendingPathComponent("Library", isDirectory: true)
-      .appendingPathComponent("Application Support", isDirectory: true)
-
-    return appSupportURL.appendingPathComponent(bundleIdentifier, isDirectory: true)
-  }
-
-  private func seedState(in store: RecentPlaybackStore, recentEntries: [RecentPlaybackEntry]) {
+  private func seedState(in store: InMemoryRecentLibraryRepository, recentEntries: [RecentPlaybackEntry]) {
     store.saveState(.init(recentEntries: recentEntries, archivedEntries: []))
   }
 

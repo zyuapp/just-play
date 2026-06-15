@@ -1,7 +1,7 @@
 import XCTest
 @testable import JustPlay
 
-final class RecentPlaybackStoreTests: XCTestCase {
+final class FileRecentLibraryRepositoryTests: XCTestCase {
   private var cleanupDirectories: [URL] = []
 
   override func tearDown() {
@@ -61,7 +61,7 @@ final class RecentPlaybackStoreTests: XCTestCase {
     )
     try writeStoreFile(bundleIdentifier: legacyBundleID, contents: Data(json.utf8))
 
-    let store = RecentPlaybackStore(bundleIdentifier: currentBundleID, legacyBundleIdentifier: legacyBundleID)
+    let store = FileRecentLibraryRepository(bundleIdentifier: currentBundleID, legacyBundleIdentifier: legacyBundleID)
 
     XCTAssertEqual(store.loadState().recentEntries.map(\.filePath), ["/movies/legacy-only.mp4"])
   }
@@ -106,8 +106,8 @@ final class RecentPlaybackStoreTests: XCTestCase {
     return bundleID
   }
 
-  private func makeStore(_ bundleIdentifier: String) -> RecentPlaybackStore {
-    RecentPlaybackStore(
+  private func makeStore(_ bundleIdentifier: String) -> FileRecentLibraryRepository {
+    FileRecentLibraryRepository(
       bundleIdentifier: bundleIdentifier,
       legacyBundleIdentifier: "com.justplay.tests.legacy.\(UUID().uuidString)"
     )
