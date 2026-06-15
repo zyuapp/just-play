@@ -43,4 +43,18 @@ final class MediaTimeTests: XCTestCase {
     XCTAssertEqual(TimeInterval(65).playbackText, "01:05")
     XCTAssertEqual(TimeInterval(3661).playbackText, "1:01:01")
   }
+
+  func testRatioToDuration() {
+    XCTAssertEqual(MediaTime(seconds: 50).ratio(toDuration: 100), 0.5, accuracy: 0.0001)
+    XCTAssertEqual(MediaTime(seconds: 150).ratio(toDuration: 100), 1.0, accuracy: 0.0001)
+    XCTAssertEqual(MediaTime(seconds: -10).ratio(toDuration: 100), 0.0, accuracy: 0.0001)
+    XCTAssertEqual(MediaTime(seconds: 50).ratio(toDuration: 0), 0.0, accuracy: 0.0001)
+  }
+
+  func testSecondsForRatio() {
+    XCTAssertEqual(MediaTime.seconds(forRatio: 0.5, duration: 100), 50, accuracy: 0.0001)
+    XCTAssertEqual(MediaTime.seconds(forRatio: 1.5, duration: 100), 100, accuracy: 0.0001)
+    XCTAssertEqual(MediaTime.seconds(forRatio: -0.5, duration: 100), 0, accuracy: 0.0001)
+    XCTAssertEqual(MediaTime.seconds(forRatio: 0.5, duration: -100), 0, accuracy: 0.0001)
+  }
 }
