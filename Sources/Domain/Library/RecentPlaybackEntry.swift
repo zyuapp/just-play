@@ -2,16 +2,10 @@ import Foundation
 
 struct RecentPlaybackEntry: Codable, Identifiable {
   struct SubtitleSelection: Codable, Hashable {
-    enum Source: String, Codable {
-      case autoDetected
-      case manual
-      case remoteDownloaded
-    }
-
     let filePath: String
     var bookmarkData: Data?
     let displayName: String
-    let source: Source
+    let source: SubtitleSource
 
     var resolvedURL: URL {
       guard let bookmarkData else {

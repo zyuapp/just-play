@@ -17,7 +17,7 @@ final class SRTParserTests: XCTestCase {
       "Second line"
     ])
 
-    let cues = SRTParser.parse(text: text)
+    let cues = SRTSubtitleParser().parse(text: text)
 
     XCTAssertEqual(cues.count, 2)
     XCTAssertEqual(cues[0].start, 1.0, accuracy: 0.001)
@@ -34,7 +34,7 @@ final class SRTParserTests: XCTestCase {
       "With hours"
     ])
 
-    let cues = SRTParser.parse(text: text)
+    let cues = SRTSubtitleParser().parse(text: text)
 
     XCTAssertEqual(cues.count, 1)
     XCTAssertEqual(cues[0].start, 3723.5, accuracy: 0.001)
@@ -44,7 +44,7 @@ final class SRTParserTests: XCTestCase {
   func testNormalizesCarriageReturnsAndJoinsMultiLineText() {
     let text = "1\r\n00:00:01,000 --> 00:00:02,000\r\nLine one\r\nLine two\r\n"
 
-    let cues = SRTParser.parse(text: text)
+    let cues = SRTSubtitleParser().parse(text: text)
 
     XCTAssertEqual(cues.count, 1)
     XCTAssertEqual(cues[0].text, "Line one\nLine two")
@@ -61,7 +61,7 @@ final class SRTParserTests: XCTestCase {
       "Earlier"
     ])
 
-    let cues = SRTParser.parse(text: text)
+    let cues = SRTSubtitleParser().parse(text: text)
 
     XCTAssertEqual(cues.map(\.text), ["Earlier", "Later"])
   }
@@ -75,7 +75,7 @@ final class SRTParserTests: XCTestCase {
       "Valid"
     ])
 
-    let cues = SRTParser.parse(text: text)
+    let cues = SRTSubtitleParser().parse(text: text)
 
     XCTAssertEqual(cues.count, 1)
     XCTAssertEqual(cues[0].text, "Valid")
@@ -92,7 +92,7 @@ final class SRTParserTests: XCTestCase {
       "Inverted"
     ])
 
-    XCTAssertTrue(SRTParser.parse(text: text).isEmpty)
+    XCTAssertTrue(SRTSubtitleParser().parse(text: text).isEmpty)
   }
 
   func testSkipsCuesWithNoTextLines() {
@@ -101,11 +101,11 @@ final class SRTParserTests: XCTestCase {
       "00:00:01,000 --> 00:00:02,000"
     ])
 
-    XCTAssertTrue(SRTParser.parse(text: text).isEmpty)
+    XCTAssertTrue(SRTSubtitleParser().parse(text: text).isEmpty)
   }
 
   func testEmptyInputProducesNoCues() {
-    XCTAssertTrue(SRTParser.parse(text: "").isEmpty)
+    XCTAssertTrue(SRTSubtitleParser().parse(text: "").isEmpty)
   }
 
   func testParseURLReadsUTF8File() throws {
@@ -116,7 +116,7 @@ final class SRTParserTests: XCTestCase {
     ])
     let url = try writeTemporaryFile(contents: Data(text.utf8))
 
-    let cues = try SRTParser.parse(url: url)
+    let cues = try SRTSubtitleParser().parse(url: url)
 
     XCTAssertEqual(cues.count, 1)
     XCTAssertEqual(cues[0].text, "From disk")
@@ -131,7 +131,7 @@ final class SRTParserTests: XCTestCase {
     let data = try XCTUnwrap(text.data(using: .utf16))
     let url = try writeTemporaryFile(contents: data)
 
-    let cues = try SRTParser.parse(url: url)
+    let cues = try SRTSubtitleParser().parse(url: url)
 
     XCTAssertEqual(cues.count, 1)
     XCTAssertEqual(cues[0].text, "UTF sixteen")

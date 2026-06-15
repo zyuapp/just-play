@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Foundation
 import UniformTypeIdentifiers
 
@@ -9,18 +10,6 @@ final class PlayerViewModel: ObservableObject {
   @Published private(set) var statusMessage = "Drop an MP4 or MKV file, or open one from the menu."
   @Published private(set) var recentEntries: [RecentPlaybackEntry]
   @Published private(set) var archivedEntries: [RecentPlaybackEntry]
-  @Published private(set) var subtitleText: String?
-  @Published private(set) var activeSubtitleFileName: String?
-  @Published private(set) var availableSubtitleTracks: [SubtitleTrackOption] = []
-  @Published private(set) var selectedSubtitleTrackID: String?
-  @Published private(set) var subtitleTimelineCues: [SubtitleCue] = []
-  @Published private(set) var activeSubtitleCueIndex: Int?
-
-  @Published var subtitlesEnabled = true {
-    didSet {
-      updateSubtitleText(for: playbackState.currentTime)
-    }
-  }
 
   @Published var playbackRate: Double = 1.0 {
     didSet {
@@ -46,20 +35,27 @@ final class PlayerViewModel: ObservableObject {
     currentURL.map(RecentPlaybackEntry.normalizedPath(for:))
   }
 
-  var hasSubtitleTrack: Bool {
-    selectedSubtitleTrackID != nil
+  var subtitleText: String? { subtitleService.subtitleText }
+  var activeSubtitleFileName: String? { subtitleService.activeFileName }
+  var subtitleTimelineCues: [SubtitleCue] { subtitleService.timelineCues }
+  var activeSubtitleCueIndex: Int? { subtitleService.activeCueIndex }
+  var hasSubtitleTrack: Bool { subtitleService.hasTrack }
+
+  var subtitlesEnabled: Bool {
+    get { subtitleService.isEnabled }
+    set { subtitleService.isEnabled = newValue }
   }
 
+  private let subtitleService: SubtitleService
   private let recentPlaybackStore: RecentLibraryRepository
   private let noteRecentDocumentURL: (URL) -> Void
   private let supportedFileExtensions = Set(["mp4", "m4v", "mkv"])
   private let maxRecentEntries = 50
   private let resumePolicy = ResumePolicy()
 
-  private var loadedSubtitleTracks: [LoadedSubtitleTrack] = []
-  private var subtitleCues: [SubtitleCue] = []
   private var resumeCoordinator = ResumeCoordinator()
   private var currentOpenedAt = Date()
+  private var subtitleObservation: AnyCancellable?
 
   private var playbackProgressTimer: Timer?
   private var appWillTerminateObserver: NSObjectProtocol?
@@ -81,6 +77,25 @@ final class PlayerViewModel: ObservableObject {
     let storedState = recentPlaybackStore.loadState()
     recentEntries = storedState.recentEntries
     archivedEntries = storedState.archivedEntries
+
+    self.subtitleService = SubtitleService(
+      parser: SRTSubtitleParser(),
+      setNativeRendering: { [engine] enabled in
+        engine.setNativeSubtitleRenderingEnabled(enabled)
+      }
+    )
+
+    subtitleService.onSelectionChanged = { [weak self] in
+      self?.persistCurrentPlaybackProgress(force: true)
+    }
+
+    subtitleService.announce = { [weak self] message in
+      self?.statusMessage = message
+    }
+
+    subtitleObservation = subtitleService.objectWillChange.sink { [weak self] _ in
+      self?.objectWillChange.send()
+    }
 
     self.engine.stateDidChange = { [weak self] state in
       Task { @MainActor in
@@ -148,9 +163,9 @@ final class PlayerViewModel: ObservableObject {
       statusMessage = normalizedURL.lastPathComponent
     }
 
-    resetSubtitleStateForCurrentVideo()
-    loadAutoDetectedSubtitle(for: normalizedURL)
-    restorePersistedSubtitleSelection(for: normalizedURL)
+    subtitleService.resetForNewVideo()
+    subtitleService.loadAutoDetectedSubtitle(for: normalizedURL)
+    subtitleService.restore(selection: existingEntry(for: normalizedURL)?.selectedSubtitle)
 
     engine.load(url: normalizedURL, autoplay: autoplay)
     noteRecentDocumentURL(normalizedURL)
@@ -198,11 +213,7 @@ final class PlayerViewModel: ObservableObject {
   }
 
   func selectSubtitleTrack(_ trackID: String) {
-    guard let track = loadedSubtitleTracks.first(where: { $0.id == trackID }) else {
-      return
-    }
-
-    activateSubtitleTrack(track)
+    subtitleService.selectTrack(trackID)
   }
 
   func openSubtitlePanel() {
@@ -218,33 +229,19 @@ final class PlayerViewModel: ObservableObject {
       return
     }
 
-    loadSubtitle(from: subtitleURL, source: .manual)
+    subtitleService.loadManualSubtitle(from: subtitleURL)
   }
 
   func removeSubtitleTrack() {
-    guard let selectedSubtitleTrackID else {
-      clearActiveSubtitleTrack()
-      return
-    }
-
-    loadedSubtitleTracks.removeAll { $0.id == selectedSubtitleTrackID }
-    refreshSubtitleTrackOptions()
-
-    if let nextTrack = loadedSubtitleTracks.first {
-      activateSubtitleTrack(nextTrack)
-    } else {
-      clearActiveSubtitleTrack()
-    }
-
-    persistCurrentPlaybackProgress(force: true)
+    subtitleService.removeSelectedTrack()
   }
 
   func seekToSubtitleCue(at index: Int) {
-    guard subtitleTimelineCues.indices.contains(index) else {
+    guard let start = subtitleService.cueStart(at: index) else {
       return
     }
 
-    seek(to: subtitleTimelineCues[index].start, persistImmediately: true)
+    seek(to: start, persistImmediately: true)
   }
 
   func togglePlayPause() {
@@ -275,7 +272,7 @@ final class PlayerViewModel: ObservableObject {
 
     engine.seek(to: clampedSeconds)
     playbackState.currentTime = clampedSeconds
-    updateSubtitleText(for: clampedSeconds)
+    subtitleService.updateText(for: clampedSeconds)
 
     if persistImmediately {
       persistCurrentPlaybackProgress(force: true, overridePosition: clampedSeconds)
@@ -310,7 +307,7 @@ final class PlayerViewModel: ObservableObject {
     playbackState = resolvedState
 
     apply(resolution.actions)
-    updateSubtitleText(for: playbackState.currentTime)
+    subtitleService.updateText(for: playbackState.currentTime)
   }
 
   private func apply(_ actions: [ResumeCoordinator.Action]) {
@@ -405,7 +402,7 @@ final class PlayerViewModel: ObservableObject {
       clampedPosition = max(position, 0)
     }
 
-    let selectedSubtitle = currentSubtitleSelection()
+    let selectedSubtitle = subtitleService.currentSelection()
 
     if let index = recentEntries.firstIndex(where: { $0.filePath == normalizedPath }) {
       var existing = recentEntries[index]
@@ -457,213 +454,6 @@ final class PlayerViewModel: ObservableObject {
     existingEntry(for: url)?.resumePoint(using: resumePolicy)?.seconds
   }
 
-  private func resetSubtitleStateForCurrentVideo() {
-    loadedSubtitleTracks = []
-    availableSubtitleTracks = []
-    clearActiveSubtitleTrack()
-  }
-
-  private func restorePersistedSubtitleSelection(for videoURL: URL) {
-    guard let selection = existingEntry(for: videoURL)?.selectedSubtitle else {
-      return
-    }
-
-    let subtitleURL = selection.resolvedURL
-    guard FileManager.default.fileExists(atPath: subtitleURL.path) else {
-      return
-    }
-
-    loadSubtitle(from: subtitleURL, source: subtitleSource(from: selection.source), shouldAnnounce: false)
-  }
-
-  private func loadAutoDetectedSubtitle(for videoURL: URL) {
-    guard let sidecarURL = sidecarSubtitleURL(for: videoURL) else {
-      return
-    }
-
-    loadSubtitle(from: sidecarURL, source: .autoDetected, shouldAnnounce: false)
-  }
-
-  private func loadSubtitle(from subtitleURL: URL, source: SubtitleSource, shouldAnnounce: Bool = true) {
-    do {
-      let parsedCues = try SRTParser.parse(url: subtitleURL)
-      guard !parsedCues.isEmpty else {
-        throw SubtitleError.emptyTrack
-      }
-
-      let standardizedURL = subtitleURL.standardizedFileURL
-      let track = LoadedSubtitleTrack(
-        id: subtitleTrackID(for: standardizedURL, source: source),
-        source: source,
-        url: standardizedURL,
-        displayName: standardizedURL.lastPathComponent,
-        cues: parsedCues
-      )
-
-      if let index = loadedSubtitleTracks.firstIndex(where: { $0.id == track.id }) {
-        loadedSubtitleTracks[index] = track
-      } else {
-        loadedSubtitleTracks.append(track)
-      }
-
-      refreshSubtitleTrackOptions()
-      activateSubtitleTrack(track)
-
-      guard shouldAnnounce else {
-        return
-      }
-
-      if source == .manual {
-        statusMessage = "Loaded subtitle: \(track.displayName)"
-      }
-
-    } catch {
-      if source == .manual {
-        statusMessage = "Unable to read subtitle file."
-      }
-    }
-  }
-
-  private func activateSubtitleTrack(_ track: LoadedSubtitleTrack) {
-    engine.setNativeSubtitleRenderingEnabled(false)
-    subtitleCues = track.cues
-    subtitleTimelineCues = track.cues
-    activeSubtitleFileName = track.displayName
-    selectedSubtitleTrackID = track.id
-    subtitlesEnabled = true
-    updateSubtitleText(for: playbackState.currentTime)
-    persistCurrentPlaybackProgress(force: true)
-  }
-
-  private func clearActiveSubtitleTrack() {
-    engine.setNativeSubtitleRenderingEnabled(true)
-    subtitleCues = []
-    subtitleTimelineCues = []
-    activeSubtitleCueIndex = nil
-    subtitleText = nil
-    activeSubtitleFileName = nil
-    selectedSubtitleTrackID = nil
-  }
-
-  private func refreshSubtitleTrackOptions() {
-    availableSubtitleTracks = loadedSubtitleTracks.map {
-      SubtitleTrackOption(
-        id: $0.id,
-        displayName: $0.displayName,
-        sourceLabel: $0.source.displayName
-      )
-    }
-  }
-
-  private func currentSubtitleSelection() -> RecentPlaybackEntry.SubtitleSelection? {
-    guard
-      let selectedSubtitleTrackID,
-      let track = loadedSubtitleTracks.first(where: { $0.id == selectedSubtitleTrackID })
-    else {
-      return nil
-    }
-
-    let bookmarkData = try? track.url.bookmarkData(
-      options: .minimalBookmark,
-      includingResourceValuesForKeys: nil,
-      relativeTo: nil
-    )
-
-    return RecentPlaybackEntry.SubtitleSelection(
-      filePath: track.url.path,
-      bookmarkData: bookmarkData,
-      displayName: track.displayName,
-      source: persistedSubtitleSource(from: track.source)
-    )
-  }
-
-  private func subtitleSource(from source: RecentPlaybackEntry.SubtitleSelection.Source) -> SubtitleSource {
-    switch source {
-    case .autoDetected:
-      return .autoDetected
-    case .manual:
-      return .manual
-    case .remoteDownloaded:
-      return .manual
-    }
-  }
-
-  private func persistedSubtitleSource(from source: SubtitleSource) -> RecentPlaybackEntry.SubtitleSelection.Source {
-    switch source {
-    case .autoDetected:
-      return .autoDetected
-    case .manual:
-      return .manual
-    }
-  }
-
-  private func subtitleTrackID(for url: URL, source: SubtitleSource) -> String {
-    "\(source.rawValue)::\(url.path)"
-  }
-
-  private func sidecarSubtitleURL(for videoURL: URL) -> URL? {
-    let directoryURL = videoURL.deletingLastPathComponent()
-    let baseName = videoURL.deletingPathExtension().lastPathComponent.lowercased()
-
-    guard let fileURLs = try? FileManager.default.contentsOfDirectory(
-      at: directoryURL,
-      includingPropertiesForKeys: nil,
-      options: [.skipsHiddenFiles]
-    ) else {
-      return nil
-    }
-
-    return fileURLs.first {
-      $0.pathExtension.lowercased() == "srt"
-        && $0.deletingPathExtension().lastPathComponent.lowercased() == baseName
-    }
-  }
-
-  private func updateSubtitleText(for time: TimeInterval) {
-    activeSubtitleCueIndex = findActiveSubtitleCueIndex(at: time)
-
-    guard subtitlesEnabled else {
-      subtitleText = nil
-      return
-    }
-
-    guard !subtitleCues.isEmpty else {
-      subtitleText = nil
-      return
-    }
-
-    guard let activeSubtitleCueIndex else {
-      subtitleText = nil
-      return
-    }
-
-    subtitleText = subtitleCues[activeSubtitleCueIndex].text
-  }
-
-  private func findActiveSubtitleCueIndex(at time: TimeInterval) -> Int? {
-    guard !subtitleCues.isEmpty else {
-      return nil
-    }
-
-    var lowerBound = 0
-    var upperBound = subtitleCues.count - 1
-
-    while lowerBound <= upperBound {
-      let middleIndex = lowerBound + ((upperBound - lowerBound) / 2)
-      let cue = subtitleCues[middleIndex]
-
-      if time < cue.start {
-        upperBound = middleIndex - 1
-      } else if time > cue.end {
-        lowerBound = middleIndex + 1
-      } else {
-        return middleIndex
-      }
-    }
-
-    return nil
-  }
-
   private func subtitleContentTypes() -> [UTType] {
     if let srtType = UTType(filenameExtension: "srt") {
       return [srtType, .plainText]
@@ -672,33 +462,4 @@ final class PlayerViewModel: ObservableObject {
     return [.plainText]
   }
 
-}
-
-private extension PlayerViewModel {
-  struct LoadedSubtitleTrack: Identifiable {
-    let id: String
-    let source: SubtitleSource
-    let url: URL
-    let displayName: String
-    let cues: [SubtitleCue]
-  }
-
-  enum SubtitleSource: String {
-    case autoDetected
-    case manual
-
-    var displayName: String {
-      switch self {
-      case .autoDetected:
-        return "Auto"
-      case .manual:
-        return "Imported"
-      }
-    }
-  }
-
-  enum SubtitleError: Error {
-    case emptyTrack
-    case unreadableTrack
-  }
 }
