@@ -39,7 +39,8 @@ final class RecentPlaybackStore {
 
   init(
     fileManager: FileManager = .default,
-    bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "com.justplay"
+    bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "com.justplay",
+    legacyBundleIdentifier: String = "com.justplay.native"
   ) {
     self.fileManager = fileManager
     self.fileURL = Self.makeFileURL(fileManager: fileManager, bundleIdentifier: bundleIdentifier)
@@ -49,7 +50,7 @@ final class RecentPlaybackStore {
 
     decoder.dateDecodingStrategy = .iso8601
 
-    migrateLegacyStoreIfNeeded(from: "com.justplay.native")
+    migrateLegacyStoreIfNeeded(from: legacyBundleIdentifier)
   }
 
   func loadState() -> State {
