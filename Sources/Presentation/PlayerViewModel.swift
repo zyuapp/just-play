@@ -98,7 +98,7 @@ final class PlayerViewModel: ObservableObject {
         object: nil,
         queue: .main
       ) { [weak self] _ in
-        Task { @MainActor in
+        MainActor.assumeIsolated {
           self?.session.flushProgress()
         }
       }

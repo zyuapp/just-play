@@ -45,6 +45,9 @@ final class LibraryService: ObservableObject {
     recentEntries.removeAll { $0.filePath == entry.filePath }
     recentEntries.append(entry)
     recentEntries.sort { $0.lastOpenedAt > $1.lastOpenedAt }
+    if recentEntries.count > maxRecentEntries {
+      recentEntries = Array(recentEntries.prefix(maxRecentEntries))
+    }
     saveState()
   }
 
