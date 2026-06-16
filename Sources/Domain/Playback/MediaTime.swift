@@ -20,7 +20,7 @@ struct MediaTime: Equatable {
   }
 
   func ratio(toDuration duration: TimeInterval) -> Double {
-    guard duration > 0 else {
+    guard seconds.isFinite, duration > 0 else {
       return 0
     }
 
@@ -28,7 +28,11 @@ struct MediaTime: Equatable {
   }
 
   static func seconds(forRatio ratio: Double, duration: TimeInterval) -> TimeInterval {
-    min(max(ratio, 0), 1) * max(duration, 0)
+    guard ratio.isFinite, duration.isFinite else {
+      return 0
+    }
+
+    return min(max(ratio, 0), 1) * max(duration, 0)
   }
 
   var displayText: String {

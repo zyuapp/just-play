@@ -77,7 +77,7 @@ struct SRTSubtitleParser: SubtitleParser {
 
     let secondSegments = segments[2].split(separator: ".", maxSplits: 1)
 
-    guard let seconds = Double(secondSegments[0]) else {
+    guard let secondsToken = secondSegments.first, let seconds = Double(secondsToken) else {
       return nil
     }
 

@@ -57,4 +57,16 @@ final class MediaTimeTests: XCTestCase {
     XCTAssertEqual(MediaTime.seconds(forRatio: -0.5, duration: 100), 0, accuracy: 0.0001)
     XCTAssertEqual(MediaTime.seconds(forRatio: 0.5, duration: -100), 0, accuracy: 0.0001)
   }
+
+  func testRatioForNonFiniteInputsReturnsZero() {
+    XCTAssertEqual(MediaTime(seconds: .nan).ratio(toDuration: 100), 0.0, accuracy: 0.0001)
+    XCTAssertEqual(MediaTime(seconds: .infinity).ratio(toDuration: 100), 0.0, accuracy: 0.0001)
+    XCTAssertEqual(MediaTime(seconds: 50).ratio(toDuration: .nan), 0.0, accuracy: 0.0001)
+  }
+
+  func testSecondsForNonFiniteInputsReturnsZero() {
+    XCTAssertEqual(MediaTime.seconds(forRatio: .nan, duration: 100), 0, accuracy: 0.0001)
+    XCTAssertEqual(MediaTime.seconds(forRatio: 0.5, duration: .nan), 0, accuracy: 0.0001)
+    XCTAssertEqual(MediaTime.seconds(forRatio: 0.5, duration: .infinity), 0, accuracy: 0.0001)
+  }
 }

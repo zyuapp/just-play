@@ -92,9 +92,8 @@ final class SubtitleService: ObservableObject {
       activate(nextTrack)
     } else {
       clearActiveTrack()
+      onSelectionChanged()
     }
-
-    onSelectionChanged()
   }
 
   func updateText(for time: TimeInterval) {
@@ -178,8 +177,13 @@ final class SubtitleService: ObservableObject {
     timelineCues = track.cues
     activeFileName = track.displayName
     selectedTrackID = track.id
-    isEnabled = true
-    refreshSubtitleText()
+
+    if isEnabled {
+      refreshSubtitleText()
+    } else {
+      isEnabled = true
+    }
+
     onSelectionChanged()
   }
 

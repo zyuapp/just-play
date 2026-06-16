@@ -95,6 +95,22 @@ final class SRTParserTests: XCTestCase {
     XCTAssertTrue(SRTSubtitleParser().parse(text: text).isEmpty)
   }
 
+  func testSkipsMalformedSecondsTimestampWithoutCrashing() {
+    let text = srt([
+      "1",
+      "00:00:. --> 00:00:01,000",
+      "Malformed seconds",
+      "",
+      "2",
+      "00:00:01,000 --> 00:00:02,000",
+      "Valid"
+    ])
+
+    let cues = SRTSubtitleParser().parse(text: text)
+
+    XCTAssertEqual(cues.map(\.text), ["Valid"])
+  }
+
   func testSkipsCuesWithNoTextLines() {
     let text = srt([
       "1",
