@@ -13,9 +13,7 @@ struct ContentView: View {
   @State private var lastLiveSeekDispatchTimestamp: TimeInterval = 0
   @State private var isFullscreen = false
   @State private var isHoveringFullscreenControlsRegion = false
-  @State private var isHoveringFullscreenSubtitleHotspot = false
-  @State private var isHoveringFullscreenSubtitlePanel = false
-  @State private var isFullscreenSubtitlePanelVisible = false
+  @State private var fullscreenSubtitlePanel = FullscreenSubtitlePanelVisibility()
   @State private var isVolumePopoverPresented = false
   @State private var fullscreenCursorAutoHideController = FullscreenCursorAutoHideController()
   @State private var keyboardMonitor: Any? = nil
@@ -184,7 +182,7 @@ struct ContentView: View {
           .contentShape(Rectangle())
           .onHover(perform: updateFullscreenSubtitleHotspotHover)
 
-        if isFullscreenSubtitlePanelVisible {
+        if fullscreenSubtitlePanel.isVisible {
           SubtitleTimelinePanel(
             cues: viewModel.subtitleTimelineCues,
             activeCueIndex: viewModel.activeSubtitleCueIndex,
@@ -200,7 +198,7 @@ struct ContentView: View {
           .onHover(perform: updateFullscreenSubtitlePanelHover)
         }
       }
-      .animation(.easeInOut(duration: 0.2), value: isFullscreenSubtitlePanelVisible)
+      .animation(.easeInOut(duration: 0.2), value: fullscreenSubtitlePanel.isVisible)
     }
   }
 
@@ -484,17 +482,12 @@ struct ContentView: View {
   }
 
   private func normalizedSeekRatio(for time: Double, duration: Double) -> Double {
-    guard duration > 0 else {
-      return 0
-    }
-
-    return min(max(time / duration, 0), 1)
+    MediaTime(seconds: time).ratio(toDuration: duration)
   }
 
   private func seekTime(for positionX: CGFloat, totalWidth: CGFloat) -> Double {
-    let clampedWidth = max(totalWidth, 1)
-    let ratio = min(max(Double(positionX / clampedWidth), 0), 1)
-    return ratio * max(viewModel.playbackState.duration, 0)
+    let ratio = Double(positionX / max(totalWidth, 1))
+    return MediaTime.seconds(forRatio: ratio, duration: viewModel.playbackState.duration)
   }
 
   private var displayedCurrentTime: TimeInterval {
@@ -633,38 +626,32 @@ struct ContentView: View {
   }
 
   private func updateFullscreenSubtitleHotspotHover(_ hovering: Bool) {
-    isHoveringFullscreenSubtitleHotspot = hovering
-
-    if hovering {
-      showFullscreenSubtitlePanel()
-    } else {
-      scheduleFullscreenSubtitlePanelHideIfNeeded()
-    }
+    handleFullscreenSubtitle(effect: fullscreenSubtitlePanel.hotspotHoverChanged(hovering))
   }
 
   private func updateFullscreenSubtitlePanelHover(_ hovering: Bool) {
-    isHoveringFullscreenSubtitlePanel = hovering
+    handleFullscreenSubtitle(effect: fullscreenSubtitlePanel.panelHoverChanged(hovering))
+  }
 
-    if hovering {
-      showFullscreenSubtitlePanel()
-    } else {
-      scheduleFullscreenSubtitlePanelHideIfNeeded()
+  private func handleFullscreenSubtitle(effect: FullscreenSubtitlePanelVisibility.HoverEffect) {
+    switch effect {
+    case .show:
+      cancelFullscreenSubtitleHide()
+    case .scheduleHide:
+      scheduleFullscreenSubtitlePanelHide()
     }
   }
 
-  private func showFullscreenSubtitlePanel() {
+  private func cancelFullscreenSubtitleHide() {
     fullscreenSubtitleHideWorkItem?.cancel()
     fullscreenSubtitleHideWorkItem = nil
-    isFullscreenSubtitlePanelVisible = true
   }
 
-  private func scheduleFullscreenSubtitlePanelHideIfNeeded() {
+  private func scheduleFullscreenSubtitlePanelHide() {
     fullscreenSubtitleHideWorkItem?.cancel()
 
     let workItem = DispatchWorkItem {
-      if !isHoveringFullscreenSubtitleHotspot && !isHoveringFullscreenSubtitlePanel {
-        isFullscreenSubtitlePanelVisible = false
-      }
+      fullscreenSubtitlePanel.hideIfIdle()
     }
 
     fullscreenSubtitleHideWorkItem = workItem
@@ -672,11 +659,8 @@ struct ContentView: View {
   }
 
   private func resetFullscreenSubtitlePanelState() {
-    fullscreenSubtitleHideWorkItem?.cancel()
-    fullscreenSubtitleHideWorkItem = nil
-    isHoveringFullscreenSubtitleHotspot = false
-    isHoveringFullscreenSubtitlePanel = false
-    isFullscreenSubtitlePanelVisible = false
+    cancelFullscreenSubtitleHide()
+    fullscreenSubtitlePanel.reset()
   }
 
   private func playbackRateLabel(for rate: Double) -> String {

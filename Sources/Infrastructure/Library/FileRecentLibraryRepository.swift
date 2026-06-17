@@ -1,11 +1,6 @@
 import Foundation
 
-final class RecentPlaybackStore {
-  struct State {
-    let recentEntries: [RecentPlaybackEntry]
-    let archivedEntries: [RecentPlaybackEntry]
-  }
-
+final class FileRecentLibraryRepository: RecentLibraryRepository {
   private struct Payload: Decodable {
     let schemaVersion: Int
     let entries: [RecentPlaybackEntry]
@@ -39,7 +34,8 @@ final class RecentPlaybackStore {
 
   init(
     fileManager: FileManager = .default,
-    bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "com.justplay"
+    bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "com.justplay",
+    legacyBundleIdentifier: String = "com.justplay.native"
   ) {
     self.fileManager = fileManager
     self.fileURL = Self.makeFileURL(fileManager: fileManager, bundleIdentifier: bundleIdentifier)
@@ -49,24 +45,24 @@ final class RecentPlaybackStore {
 
     decoder.dateDecodingStrategy = .iso8601
 
-    migrateLegacyStoreIfNeeded(from: "com.justplay.native")
+    migrateLegacyStoreIfNeeded(from: legacyBundleIdentifier)
   }
 
-  func loadState() -> State {
+  func loadState() -> RecentLibraryState {
     guard let data = try? Data(contentsOf: fileURL) else {
-      return State(recentEntries: [], archivedEntries: [])
+      return .empty
     }
 
     guard let payload = try? decoder.decode(Payload.self, from: data) else {
-      return State(recentEntries: [], archivedEntries: [])
+      return .empty
     }
 
     let sortedRecentEntries = payload.entries.sorted { $0.lastOpenedAt > $1.lastOpenedAt }
     let sortedArchivedEntries = payload.archivedEntries.sorted { $0.lastOpenedAt > $1.lastOpenedAt }
-    return State(recentEntries: sortedRecentEntries, archivedEntries: sortedArchivedEntries)
+    return RecentLibraryState(recentEntries: sortedRecentEntries, archivedEntries: sortedArchivedEntries)
   }
 
-  func saveState(_ state: State) {
+  func saveState(_ state: RecentLibraryState) {
     let sortedRecentEntries = state.recentEntries.sorted { $0.lastOpenedAt > $1.lastOpenedAt }
     let sortedArchivedEntries = state.archivedEntries.sorted { $0.lastOpenedAt > $1.lastOpenedAt }
     let payload = SavePayload(schemaVersion: 2, entries: sortedRecentEntries, archivedEntries: sortedArchivedEntries)

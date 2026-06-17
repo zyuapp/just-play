@@ -1,17 +1,17 @@
 import Foundation
 
-enum SRTParser {
-  static func parse(url: URL) throws -> [SubtitleCue] {
+struct SRTSubtitleParser: SubtitleParser {
+  func parse(url: URL) throws -> [SubtitleCue] {
     let data = try Data(contentsOf: url)
 
-    guard let rawText = decode(data) else {
+    guard let rawText = Self.decode(data) else {
       throw ParserError.unsupportedEncoding
     }
 
     return parse(text: rawText)
   }
 
-  static func parse(text: String) -> [SubtitleCue] {
+  func parse(text: String) -> [SubtitleCue] {
     let normalizedText = text
       .replacingOccurrences(of: "\r\n", with: "\n")
       .replacingOccurrences(of: "\r", with: "\n")
@@ -37,8 +37,8 @@ enum SRTParser {
 
       guard
         timingParts.count == 2,
-        let start = parseTimestamp(timingParts[0]),
-        let end = parseTimestamp(timingParts[1]),
+        let start = Self.parseTimestamp(timingParts[0]),
+        let end = Self.parseTimestamp(timingParts[1]),
         end > start
       else {
         continue
@@ -77,7 +77,7 @@ enum SRTParser {
 
     let secondSegments = segments[2].split(separator: ".", maxSplits: 1)
 
-    guard let seconds = Double(secondSegments[0]) else {
+    guard let secondsToken = secondSegments.first, let seconds = Double(secondsToken) else {
       return nil
     }
 
@@ -106,7 +106,7 @@ enum SRTParser {
   }
 }
 
-extension SRTParser {
+extension SRTSubtitleParser {
   enum ParserError: Error {
     case unsupportedEncoding
   }
