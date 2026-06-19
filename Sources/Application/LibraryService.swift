@@ -66,11 +66,7 @@ final class LibraryService: ObservableObject {
     let normalizedPath = RecentPlaybackEntry.normalizedPath(for: url)
     let resourceValues = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
 
-    let bookmarkData = try? url.bookmarkData(
-      options: .minimalBookmark,
-      includingResourceValuesForKeys: nil,
-      relativeTo: nil
-    )
+    let bookmarkData = BookmarkResolver.makeBookmark(for: url)
 
     let clampedDuration = max(duration, 0)
     let clampedPosition = MediaTime(seconds: position).clamped(to: clampedDuration).seconds

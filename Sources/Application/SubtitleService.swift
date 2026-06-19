@@ -117,11 +117,7 @@ final class SubtitleService: ObservableObject {
       return nil
     }
 
-    let bookmarkData = try? track.url.bookmarkData(
-      options: .minimalBookmark,
-      includingResourceValuesForKeys: nil,
-      relativeTo: nil
-    )
+    let bookmarkData = BookmarkResolver.makeBookmark(for: track.url)
 
     return RecentPlaybackEntry.SubtitleSelection(
       filePath: track.url.path,
