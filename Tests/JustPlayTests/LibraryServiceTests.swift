@@ -84,6 +84,22 @@ final class LibraryServiceTests: XCTestCase {
     XCTAssertEqual(reloaded.archivedEntries.map(\.filePath), ["/movies/a.mp4"])
   }
 
+  func testUpsertPrunesToMaxRecentEntriesKeepingMostRecentlyOpened() {
+    let service = makeService(maxRecentEntries: 3)
+
+    for index in 1...5 {
+      service.upsert(
+        for: URL(fileURLWithPath: "/movies/\(index).mp4"),
+        position: 0,
+        duration: 100,
+        openedAt: Date(timeIntervalSince1970: TimeInterval(index)),
+        selectedSubtitle: nil
+      )
+    }
+
+    XCTAssertEqual(service.recentEntries.map(\.filePath), ["/movies/5.mp4", "/movies/4.mp4", "/movies/3.mp4"])
+  }
+
   private func makeService(
     recentEntries: [RecentPlaybackEntry] = [],
     archivedEntries: [RecentPlaybackEntry] = [],
