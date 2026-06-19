@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 @testable import JustPlay
 
-final class TestPlaybackEngine: PlaybackEngine {
+final class TestPlaybackEngine: PlaybackEngine, VideoSurfaceProviding {
   enum Event: Equatable {
     case load(path: String, autoplay: Bool)
     case play

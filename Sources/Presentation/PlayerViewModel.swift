@@ -23,7 +23,7 @@ final class PlayerViewModel: ObservableObject {
     }
   }
 
-  let engine: PlaybackEngine
+  let engine: PlaybackEngine & VideoSurfaceProviding
 
   var playbackState: PlaybackState { session.playbackState }
   var currentURL: URL? { session.currentURL }
@@ -51,7 +51,7 @@ final class PlayerViewModel: ObservableObject {
   private var appWillTerminateObserver: NSObjectProtocol?
 
   init(
-    engine: PlaybackEngine = PlaybackEngineFactory.makeDefaultEngine(),
+    engine: PlaybackEngine & VideoSurfaceProviding = PlaybackEngineFactory.makeDefaultEngine(),
     recentPlaybackStore: RecentLibraryRepository = FileRecentLibraryRepository(),
     enableProgressPersistenceTimer: Bool = true,
     observeApplicationWillTerminate: Bool = true,

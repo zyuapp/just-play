@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 struct PlaybackEngineView: NSViewRepresentable {
-  let engine: PlaybackEngine
+  let engine: VideoSurfaceProviding
 
   func makeNSView(context: Context) -> NSView {
     engine.makeVideoView()

@@ -1,11 +1,9 @@
-import AppKit
 import Foundation
 
 protocol PlaybackEngine: AnyObject {
   var stateDidChange: ((PlaybackState) -> Void)? { get set }
   var playbackDidFinish: (() -> Void)? { get set }
 
-  func makeVideoView() -> NSView
   func load(url: URL, autoplay: Bool)
   func play()
   func pause()

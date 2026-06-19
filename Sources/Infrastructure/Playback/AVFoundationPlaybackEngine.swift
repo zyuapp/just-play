@@ -1,7 +1,7 @@
 import AVKit
 import Foundation
 
-final class AVFoundationPlaybackEngine: PlaybackEngine {
+final class AVFoundationPlaybackEngine: PlaybackEngine, VideoSurfaceProviding {
   var stateDidChange: ((PlaybackState) -> Void)?
   var playbackDidFinish: (() -> Void)?
 

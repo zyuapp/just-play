@@ -3,7 +3,7 @@ import AppKit
 import Foundation
 import VLCKit
 
-final class VLCPlaybackEngine: NSObject, PlaybackEngine {
+final class VLCPlaybackEngine: NSObject, PlaybackEngine, VideoSurfaceProviding {
   var stateDidChange: ((PlaybackState) -> Void)?
   var playbackDidFinish: (() -> Void)?
 
