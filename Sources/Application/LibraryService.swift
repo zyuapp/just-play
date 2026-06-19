@@ -73,12 +73,7 @@ final class LibraryService: ObservableObject {
     )
 
     let clampedDuration = max(duration, 0)
-    let clampedPosition: TimeInterval
-    if clampedDuration > 0 {
-      clampedPosition = min(max(position, 0), clampedDuration)
-    } else {
-      clampedPosition = max(position, 0)
-    }
+    let clampedPosition = MediaTime(seconds: position).clamped(to: clampedDuration).seconds
 
     if let index = recentEntries.firstIndex(where: { $0.filePath == normalizedPath }) {
       var existing = recentEntries[index]

@@ -173,12 +173,7 @@ final class PlaybackSessionService: ObservableObject {
   }
 
   func seek(to seconds: Double, persistImmediately: Bool = false) {
-    let clampedSeconds: TimeInterval
-    if playbackState.duration > 0 {
-      clampedSeconds = min(max(seconds, 0), playbackState.duration)
-    } else {
-      clampedSeconds = max(seconds, 0)
-    }
+    let clampedSeconds = MediaTime(seconds: seconds).clamped(to: playbackState.duration).seconds
 
     resumeCoordinator.userDidSeek(to: clampedSeconds, isPlaying: playbackState.isPlaying)
 
