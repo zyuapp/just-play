@@ -149,6 +149,41 @@ final class SubtitleServiceTests: XCTestCase {
     XCTAssertFalse(service.hasTrack)
   }
 
+  func testLoadAutoDetectedSubtitleActivatesCaseInsensitiveSidecar() throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("SubtitleServiceTests-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try Data("ignored".utf8).write(to: directory.appendingPathComponent("Clip.SRT"))
+
+    let parser = StubSubtitleParser(result: .success([cue(0, 2, "A")]))
+    let (service, _) = makeService(parser: parser)
+
+    service.loadAutoDetectedSubtitle(for: directory.appendingPathComponent("clip.mp4"))
+
+    XCTAssertTrue(service.hasTrack)
+    XCTAssertEqual(service.activeFileName, "Clip.SRT")
+    XCTAssertEqual(service.currentSelection()?.source, .autoDetected)
+  }
+
+  func testLoadAutoDetectedSubtitleIgnoresUnrelatedSidecars() throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("SubtitleServiceTests-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try Data("ignored".utf8).write(to: directory.appendingPathComponent("other.srt"))
+
+    let parser = StubSubtitleParser(result: .success([cue(0, 2, "A")]))
+    let (service, _) = makeService(parser: parser)
+    var announcements: [String] = []
+    service.announce = { announcements.append($0) }
+
+    service.loadAutoDetectedSubtitle(for: directory.appendingPathComponent("clip.mp4"))
+
+    XCTAssertFalse(service.hasTrack)
+    XCTAssertTrue(announcements.isEmpty)
+  }
+
   private func cue(_ start: TimeInterval, _ end: TimeInterval, _ text: String) -> SubtitleCue {
     SubtitleCue(start: start, end: end, text: text)
   }
