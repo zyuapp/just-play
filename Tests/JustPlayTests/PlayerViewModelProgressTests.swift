@@ -171,6 +171,42 @@ final class PlayerViewModelProgressTests: XCTestCase {
     XCTAssertTrue(engine.events.contains(.pause))
   }
 
+  func testArchivingCurrentlyPlayingFileIsIgnored() async throws {
+    let videoURL = try makeVideoFile(named: "archive-current")
+    let store = makeStore()
+    let engine = TestPlaybackEngine()
+    let viewModel = makeViewModel(engine: engine, store: store, restorePreviousSessionOnLaunch: false)
+
+    viewModel.open(url: videoURL)
+    engine.emitState(playbackState(isPlaying: true, currentTime: 5, duration: 100))
+    await drainMainActorTasks()
+
+    let current = try XCTUnwrap(entry(for: videoURL, in: viewModel.recentEntries))
+    viewModel.removeRecent(current)
+
+    XCTAssertNotNil(entry(for: videoURL, in: viewModel.recentEntries))
+    XCTAssertTrue(viewModel.archivedEntries.isEmpty)
+  }
+
+  func testArchivingNonPlayingFileMovesItToArchived() async throws {
+    let playingURL = try makeVideoFile(named: "archive-keep")
+    let otherURL = try makeVideoFile(named: "archive-move")
+    let store = makeStore()
+    seedState(in: store, recentEntries: [makeEntry(url: otherURL, position: 10, duration: 100)])
+    let engine = TestPlaybackEngine()
+    let viewModel = makeViewModel(engine: engine, store: store, restorePreviousSessionOnLaunch: false)
+
+    viewModel.open(url: playingURL)
+    engine.emitState(playbackState(isPlaying: true, currentTime: 5, duration: 100))
+    await drainMainActorTasks()
+
+    let other = try XCTUnwrap(entry(for: otherURL, in: viewModel.recentEntries))
+    viewModel.removeRecent(other)
+
+    XCTAssertNil(entry(for: otherURL, in: viewModel.recentEntries))
+    XCTAssertEqual(viewModel.archivedEntries.map(\.filePath), [otherURL.standardizedFileURL.path])
+  }
+
   private func makeViewModel(
     engine: TestPlaybackEngine,
     store: InMemoryRecentLibraryRepository,
