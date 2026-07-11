@@ -14,6 +14,9 @@ final class VLCPlaybackEngine: NSObject, PlaybackEngine, VideoSurfaceProviding {
   private var currentVolume: Float = 1.0
   private var isMuted = false
   private var nativeSubtitlePolicy = VLCNativeSubtitlePolicy()
+  private var latestSeekRequestID: UInt64 = 0
+  private var pendingSeekCompletion: (requestID: UInt64, target: TimeInterval, completion: () -> Void)?
+  private var seekCompletionFallback: DispatchWorkItem?
 
   override init() {
     mediaPlayer = VLCMediaPlayer()
@@ -34,6 +37,10 @@ final class VLCPlaybackEngine: NSObject, PlaybackEngine, VideoSurfaceProviding {
   }
 
   func load(url: URL, autoplay: Bool) {
+    latestSeekRequestID &+= 1
+    pendingSeekCompletion = nil
+    seekCompletionFallback?.cancel()
+    seekCompletionFallback = nil
     let media = VLCMedia(url: url)
     mediaPlayer.media = media
     nativeSubtitlePolicy.mediaDidLoad()
@@ -59,11 +66,22 @@ final class VLCPlaybackEngine: NSObject, PlaybackEngine, VideoSurfaceProviding {
     emitState()
   }
 
-  func seek(to time: TimeInterval) {
+  func seek(to time: TimeInterval, completion: @escaping () -> Void) {
     guard time.isFinite else { return }
+    latestSeekRequestID &+= 1
+    seekCompletionFallback?.cancel()
     let clampedTime = max(time, 0)
+    let currentTime = max(Double(mediaPlayer.time.intValue) / 1000, 0)
+    let wasAlreadyAtTarget = abs(currentTime - clampedTime) <= 0.35
+    pendingSeekCompletion = (latestSeekRequestID, clampedTime, completion)
     mediaPlayer.time = VLCTime(int: Int32(clampedTime * 1000))
     emitState()
+
+    if wasAlreadyAtTarget {
+      completePendingSeekIfConfirmed()
+    } else {
+      scheduleSeekCompletionFallback()
+    }
   }
 
   func skip(by interval: TimeInterval) {
@@ -159,6 +177,47 @@ extension VLCPlaybackEngine: VLCMediaPlayerDelegate {
   func mediaPlayerTimeChanged(_ aNotification: Notification) {
     reconcileNativeSubtitleRendering()
     emitState()
+    completePendingSeekIfConfirmed()
+  }
+
+  private func completePendingSeekIfConfirmed() {
+    guard let pendingSeekCompletion else {
+      return
+    }
+
+    let currentTime = max(Double(mediaPlayer.time.intValue) / 1000, 0)
+    guard
+      pendingSeekCompletion.requestID == latestSeekRequestID,
+      abs(currentTime - pendingSeekCompletion.target) <= 0.35
+    else {
+      return
+    }
+
+    completePendingSeek(requestID: pendingSeekCompletion.requestID)
+  }
+
+  private func completePendingSeek(requestID: UInt64) {
+    guard
+      let pendingSeekCompletion,
+      pendingSeekCompletion.requestID == requestID,
+      requestID == latestSeekRequestID
+    else {
+      return
+    }
+
+    self.pendingSeekCompletion = nil
+    seekCompletionFallback?.cancel()
+    seekCompletionFallback = nil
+    pendingSeekCompletion.completion()
+  }
+
+  private func scheduleSeekCompletionFallback() {
+    let requestID = latestSeekRequestID
+    let fallback = DispatchWorkItem { [weak self] in
+      self?.completePendingSeek(requestID: requestID)
+    }
+    seekCompletionFallback = fallback
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: fallback)
   }
 }
 #endif

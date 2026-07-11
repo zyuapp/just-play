@@ -16,7 +16,7 @@ struct ResumeCoordinator {
   private var pendingResumeSeek: TimeInterval?
   private var shouldPrimePlayback = false
   private var shouldPauseAfterResume = false
-  private var pendingPausedSeekTime: TimeInterval?
+  private var pendingUserSeekTime: TimeInterval?
 
   init(confirmationTolerance: TimeInterval = 0.35) {
     self.confirmationTolerance = confirmationTolerance
@@ -26,26 +26,24 @@ struct ResumeCoordinator {
     pendingResumeSeek = position
     shouldPrimePlayback = !autoplay && position != nil
     shouldPauseAfterResume = false
-    pendingPausedSeekTime = nil
+    pendingUserSeekTime = nil
   }
 
-  mutating func userDidSeek(to time: TimeInterval, isPlaying: Bool) {
+  mutating func userDidSeek(to time: TimeInterval) {
     pendingResumeSeek = nil
     shouldPrimePlayback = false
     shouldPauseAfterResume = false
-    pendingPausedSeekTime = isPlaying ? nil : time
+    pendingUserSeekTime = time
   }
 
   mutating func reconcile(with state: PlaybackState) -> Resolution {
     var displayTime = state.currentTime
 
-    if let pendingPausedSeekTime {
-      if state.isPlaying {
-        self.pendingPausedSeekTime = nil
-      } else if abs(state.currentTime - pendingPausedSeekTime) <= confirmationTolerance {
-        self.pendingPausedSeekTime = nil
+    if let pendingUserSeekTime {
+      if abs(state.currentTime - pendingUserSeekTime) <= confirmationTolerance {
+        self.pendingUserSeekTime = nil
       } else {
-        displayTime = pendingPausedSeekTime
+        displayTime = pendingUserSeekTime
       }
     }
 

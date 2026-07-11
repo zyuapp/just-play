@@ -48,6 +48,7 @@ final class AVFoundationPlaybackEngine: PlaybackEngine, VideoSurfaceProviding {
   }
 
   func load(url: URL, autoplay: Bool) {
+    latestSeekRequestID &+= 1
     let item = AVPlayerItem(url: url)
     player.replaceCurrentItem(with: item)
     applyNativeSubtitleRenderingSelection(for: item)
@@ -72,7 +73,7 @@ final class AVFoundationPlaybackEngine: PlaybackEngine, VideoSurfaceProviding {
     emitState()
   }
 
-  func seek(to time: TimeInterval) {
+  func seek(to time: TimeInterval, completion: @escaping () -> Void) {
     guard time.isFinite else { return }
     latestSeekRequestID &+= 1
     let seekRequestID = latestSeekRequestID
@@ -87,6 +88,7 @@ final class AVFoundationPlaybackEngine: PlaybackEngine, VideoSurfaceProviding {
       }
 
       self.emitState()
+      completion()
     }
   }
 

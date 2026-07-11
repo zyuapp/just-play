@@ -53,7 +53,7 @@ final class ResumeCoordinatorTests: XCTestCase {
 
   func testPausedSeekHoldsRequestedTimeUntilEngineConfirms() {
     var coordinator = ResumeCoordinator()
-    coordinator.userDidSeek(to: 60, isPlaying: false)
+    coordinator.userDidSeek(to: 60)
 
     let held = coordinator.reconcile(with: state(isPlaying: false, currentTime: 10, duration: 200))
     XCTAssertEqual(held.displayTime, 60)
@@ -65,18 +65,21 @@ final class ResumeCoordinatorTests: XCTestCase {
     XCTAssertEqual(after.displayTime, 20)
   }
 
-  func testPlayingSeekDoesNotHoldDisplayTime() {
+  func testPlayingSeekHoldsRequestedTimeUntilEngineConfirms() {
     var coordinator = ResumeCoordinator()
-    coordinator.userDidSeek(to: 60, isPlaying: true)
+    coordinator.userDidSeek(to: 60)
 
-    let result = coordinator.reconcile(with: state(isPlaying: true, currentTime: 12, duration: 200))
-    XCTAssertEqual(result.displayTime, 12)
+    let held = coordinator.reconcile(with: state(isPlaying: true, currentTime: 12, duration: 200))
+    XCTAssertEqual(held.displayTime, 60)
+
+    let confirmed = coordinator.reconcile(with: state(isPlaying: true, currentTime: 60.2, duration: 200))
+    XCTAssertEqual(confirmed.displayTime, 60.2)
   }
 
   func testUserSeekCancelsPendingResume() {
     var coordinator = ResumeCoordinator()
     coordinator.beginResume(toPosition: 120, autoplay: true)
-    coordinator.userDidSeek(to: 30, isPlaying: true)
+    coordinator.userDidSeek(to: 30)
 
     let result = coordinator.reconcile(with: state(isPlaying: true, currentTime: 0, duration: 300))
     XCTAssertEqual(result.actions, [])
