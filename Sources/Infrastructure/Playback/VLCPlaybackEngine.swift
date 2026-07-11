@@ -14,6 +14,8 @@ final class VLCPlaybackEngine: NSObject, PlaybackEngine, VideoSurfaceProviding {
   private var currentVolume: Float = 1.0
   private var isMuted = false
   private var nativeSubtitlePolicy = VLCNativeSubtitlePolicy()
+  private var latestSeekRequestID: UInt64 = 0
+  private var pendingSeekCompletion: (requestID: UInt64, target: TimeInterval, completion: () -> Void)?
 
   override init() {
     mediaPlayer = VLCMediaPlayer()
@@ -34,6 +36,8 @@ final class VLCPlaybackEngine: NSObject, PlaybackEngine, VideoSurfaceProviding {
   }
 
   func load(url: URL, autoplay: Bool) {
+    latestSeekRequestID &+= 1
+    pendingSeekCompletion = nil
     let media = VLCMedia(url: url)
     mediaPlayer.media = media
     nativeSubtitlePolicy.mediaDidLoad()
@@ -59,11 +63,19 @@ final class VLCPlaybackEngine: NSObject, PlaybackEngine, VideoSurfaceProviding {
     emitState()
   }
 
-  func seek(to time: TimeInterval) {
+  func seek(to time: TimeInterval, completion: @escaping () -> Void) {
     guard time.isFinite else { return }
+    latestSeekRequestID &+= 1
     let clampedTime = max(time, 0)
+    let currentTime = max(Double(mediaPlayer.time.intValue) / 1000, 0)
+    let wasAlreadyAtTarget = abs(currentTime - clampedTime) <= 0.35
+    pendingSeekCompletion = (latestSeekRequestID, clampedTime, completion)
     mediaPlayer.time = VLCTime(int: Int32(clampedTime * 1000))
     emitState()
+
+    if wasAlreadyAtTarget {
+      completePendingSeekIfConfirmed()
+    }
   }
 
   func skip(by interval: TimeInterval) {
@@ -159,6 +171,24 @@ extension VLCPlaybackEngine: VLCMediaPlayerDelegate {
   func mediaPlayerTimeChanged(_ aNotification: Notification) {
     reconcileNativeSubtitleRendering()
     emitState()
+    completePendingSeekIfConfirmed()
+  }
+
+  private func completePendingSeekIfConfirmed() {
+    guard let pendingSeekCompletion else {
+      return
+    }
+
+    let currentTime = max(Double(mediaPlayer.time.intValue) / 1000, 0)
+    guard
+      pendingSeekCompletion.requestID == latestSeekRequestID,
+      abs(currentTime - pendingSeekCompletion.target) <= 0.35
+    else {
+      return
+    }
+
+    self.pendingSeekCompletion = nil
+    pendingSeekCompletion.completion()
   }
 }
 #endif

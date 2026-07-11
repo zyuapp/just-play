@@ -22,6 +22,7 @@ final class PlaybackSessionService: ObservableObject {
   private var currentOpenedAt = Date()
   private var observations: Set<AnyCancellable> = []
   private var playbackProgressTimer: Timer?
+  private let playbackStateGate = PlaybackStateDeliveryGate()
 
   init(
     engine: PlaybackEngine,
@@ -52,14 +53,26 @@ final class PlaybackSessionService: ObservableObject {
       .sink { [weak self] _ in self?.objectWillChange.send() }
       .store(in: &observations)
 
-    engine.stateDidChange = { [weak self] state in
+    engine.stateDidChange = { [weak self, playbackStateGate] state in
+      let token = playbackStateGate.makeToken()
+
       Task { @MainActor in
+        guard playbackStateGate.accepts(token) else {
+          return
+        }
+
         self?.handlePlaybackStateChange(state)
       }
     }
 
-    engine.playbackDidFinish = { [weak self] in
+    engine.playbackDidFinish = { [weak self, playbackStateGate] in
+      let generation = playbackStateGate.currentGeneration()
+
       Task { @MainActor in
+        guard playbackStateGate.isCurrentGeneration(generation) else {
+          return
+        }
+
         self?.handlePlaybackDidFinish()
       }
     }
@@ -103,7 +116,9 @@ final class PlaybackSessionService: ObservableObject {
     subtitles.loadAutoDetectedSubtitle(for: normalizedURL)
     subtitles.restore(selection: library.entry(for: normalizedURL)?.selectedSubtitle)
 
-    engine.load(url: normalizedURL, autoplay: autoplay)
+    performEngineCommand {
+      engine.load(url: normalizedURL, autoplay: autoplay)
+    }
     noteRecentDocumentURL(normalizedURL)
 
     let seedDuration = library.entry(for: normalizedURL)?.duration ?? 0
@@ -157,11 +172,21 @@ final class PlaybackSessionService: ObservableObject {
   }
 
   func togglePlayPause() {
-    if playbackState.isPlaying {
-      engine.pause()
-    } else {
-      engine.play()
+    performEngineCommand {
+      if playbackState.isPlaying {
+        engine.pause()
+      } else {
+        engine.play()
+      }
     }
+  }
+
+  func play() {
+    performEngineCommand(engine.play)
+  }
+
+  func pause() {
+    performEngineCommand(engine.pause)
   }
 
   func skipForward() {
@@ -173,13 +198,37 @@ final class PlaybackSessionService: ObservableObject {
   }
 
   func seek(to seconds: Double, persistImmediately: Bool = false) {
-    let clampedSeconds = MediaTime(seconds: seconds).clamped(to: playbackState.duration).seconds
+    let clampedSeconds = prepareSeek(to: seconds)
 
-    resumeCoordinator.userDidSeek(to: clampedSeconds, isPlaying: playbackState.isPlaying)
+    performEngineCommand {
+      engine.seek(to: clampedSeconds)
+    }
 
-    engine.seek(to: clampedSeconds)
-    playbackState.currentTime = clampedSeconds
-    subtitles.updateText(for: clampedSeconds)
+    if persistImmediately {
+      persistCurrentPlaybackProgress(force: true, overridePosition: clampedSeconds)
+    }
+  }
+
+  func finishSeeking(
+    to seconds: Double,
+    resumePlayback: Bool,
+    persistImmediately: Bool = true
+  ) {
+    let clampedSeconds = prepareSeek(to: seconds)
+    let seekGeneration = beginEngineCommand()
+    engine.seek(to: clampedSeconds) { [weak self, playbackStateGate] in
+      Task { @MainActor in
+        guard
+          let self,
+          resumePlayback,
+          playbackStateGate.isCurrentGeneration(seekGeneration)
+        else {
+          return
+        }
+
+        self.play()
+      }
+    }
 
     if persistImmediately {
       persistCurrentPlaybackProgress(force: true, overridePosition: clampedSeconds)
@@ -223,13 +272,15 @@ final class PlaybackSessionService: ObservableObject {
 
   private func apply(_ actions: [ResumeCoordinator.Action]) {
     for action in actions {
-      switch action {
-      case let .seek(time):
-        engine.seek(to: time)
-      case .play:
-        engine.play()
-      case .pause:
-        engine.pause()
+      performEngineCommand {
+        switch action {
+        case let .seek(time):
+          engine.seek(to: time)
+        case .play:
+          engine.play()
+        case .pause:
+          engine.pause()
+        }
       }
     }
   }
@@ -251,8 +302,29 @@ final class PlaybackSessionService: ObservableObject {
 
   private func skip(by interval: TimeInterval) {
     let projectedPosition = playbackState.currentTime + interval
-    engine.skip(by: interval)
+    performEngineCommand {
+      engine.skip(by: interval)
+    }
     persistCurrentPlaybackProgress(force: true, overridePosition: projectedPosition)
+  }
+
+  private func prepareSeek(to seconds: Double) -> TimeInterval {
+    let clampedSeconds = MediaTime(seconds: seconds).clamped(to: playbackState.duration).seconds
+    resumeCoordinator.userDidSeek(to: clampedSeconds)
+    playbackState.currentTime = clampedSeconds
+    subtitles.updateText(for: clampedSeconds)
+    return clampedSeconds
+  }
+
+  @discardableResult
+  private func beginEngineCommand() -> UInt64 {
+    playbackStateGate.beginCommand()
+    return playbackStateGate.currentGeneration()
+  }
+
+  private func performEngineCommand(_ command: () -> Void) {
+    beginEngineCommand()
+    command()
   }
 
   private func persistCurrentPlaybackProgress(force: Bool = false, overridePosition: TimeInterval? = nil) {
@@ -290,5 +362,63 @@ final class PlaybackSessionService: ObservableObject {
       openedAt: currentOpenedAt,
       selectedSubtitle: subtitles.currentSelection()
     )
+  }
+}
+
+private final class PlaybackStateDeliveryGate: @unchecked Sendable {
+  struct Token {
+    let generation: UInt64
+    let sequence: UInt64
+  }
+
+  private let lock = NSLock()
+  private var generation: UInt64 = 0
+  private var nextSequence: UInt64 = 0
+  private var lastAcceptedSequence: UInt64 = 0
+
+  func beginCommand() {
+    lock.lock()
+    defer { lock.unlock() }
+
+    generation &+= 1
+    nextSequence = 0
+    lastAcceptedSequence = 0
+  }
+
+  func makeToken() -> Token {
+    lock.lock()
+    defer { lock.unlock() }
+
+    nextSequence &+= 1
+    return Token(generation: generation, sequence: nextSequence)
+  }
+
+  func currentGeneration() -> UInt64 {
+    lock.lock()
+    defer { lock.unlock() }
+
+    return generation
+  }
+
+  func isCurrentGeneration(_ candidate: UInt64) -> Bool {
+    lock.lock()
+    defer { lock.unlock() }
+
+    return candidate == generation
+  }
+
+  func accepts(_ token: Token) -> Bool {
+    lock.lock()
+    defer { lock.unlock() }
+
+    guard
+      token.generation == generation,
+      token.sequence > lastAcceptedSequence
+    else {
+      return false
+    }
+
+    lastAcceptedSequence = token.sequence
+    return true
   }
 }

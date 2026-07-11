@@ -10,6 +10,9 @@ struct ContentView: View {
   @State private var seekPosition: Double = 0
   @State private var isSeeking = false
   @State private var seekStartedWhilePlaying = false
+  @GestureState private var isSeekGestureActive = false
+  @State private var lastPreviewSeekTimestamp: TimeInterval = 0
+  @State private var pendingPreviewSeekTask: Task<Void, Never>?
   @State private var isFullscreen = false
   @State private var isHoveringFullscreenControlsRegion = false
   @State private var fullscreenSubtitlePanel = FullscreenSubtitlePanelVisibility()
@@ -19,6 +22,7 @@ struct ContentView: View {
   @State private var isSidebarVisible = true
   @State private var fullscreenSubtitleHideWorkItem: DispatchWorkItem?
 
+  private let previewSeekInterval: TimeInterval = 0.2
   private let fullscreenSubtitleHideDelay: TimeInterval = 0.35
   private let playbackRateOptions: [Double] = [0.5, 1.0, 1.25, 1.5, 2.0]
 
@@ -79,6 +83,7 @@ struct ContentView: View {
       }
     }
     .onDisappear {
+      cancelSeekingSessionIfNeeded()
       teardownKeyboardMonitoring()
       fullscreenCursorAutoHideController.stop()
       resetFullscreenSubtitlePanelState()
@@ -102,6 +107,7 @@ struct ContentView: View {
       seekPosition = max(newValue, 0)
     }
     .onChange(of: isFullscreen) { newValue in
+      cancelSeekingSessionIfNeeded()
       updateFullscreenDependentState(isFullscreen: newValue)
     }
     .onChange(of: viewModel.subtitleTimelineCues.isEmpty) { isEmpty in
@@ -112,6 +118,11 @@ struct ContentView: View {
     .onChange(of: viewModel.playbackState.duration) { newValue in
       guard !isSeeking else { return }
       seekPosition = min(seekPosition, max(newValue, 0))
+    }
+    .onChange(of: isSeekGestureActive) { isActive in
+      if !isActive {
+        cancelSeekingSessionIfNeeded()
+      }
     }
     .frame(minWidth: 1080, minHeight: 640)
   }
@@ -208,7 +219,7 @@ struct ContentView: View {
           .frame(maxWidth: .infinity)
           .frame(height: 172)
 
-        if isHoveringFullscreenControlsRegion {
+        if isHoveringFullscreenControlsRegion || isSeeking {
           controlsView
             .padding(.horizontal, 16)
             .padding(.bottom, 14)
@@ -448,6 +459,9 @@ struct ContentView: View {
       .contentShape(Rectangle())
       .gesture(
         DragGesture(minimumDistance: 0)
+          .updating($isSeekGestureActive) { _, isActive, _ in
+            isActive = true
+          }
           .onChanged { value in
             guard duration > 0 else { return }
             let clampedX = min(max(value.location.x, 0), width)
@@ -458,6 +472,7 @@ struct ContentView: View {
             }
 
             seekPosition = targetTime
+            schedulePreviewSeek(to: targetTime)
           }
           .onEnded { value in
             guard duration > 0 else {
@@ -468,8 +483,12 @@ struct ContentView: View {
             let clampedX = min(max(value.location.x, 0), width)
             let targetTime = seekTime(for: clampedX, totalWidth: width)
             seekPosition = targetTime
-            viewModel.seek(to: targetTime, persistImmediately: true)
-            endSeekingSession()
+            cancelPendingPreviewSeek()
+            viewModel.finishSeeking(
+              to: targetTime,
+              resumePlayback: seekStartedWhilePlaying
+            )
+            endSeekingSession(resumePlayback: false)
           }
       )
       .opacity(duration > 0 ? 1 : 0.5)
@@ -496,12 +515,73 @@ struct ContentView: View {
   }
 
   private func beginSeekingSession() {
+    let wasPlaying = viewModel.playbackState.isPlaying
     isSeeking = true
-    seekStartedWhilePlaying = viewModel.playbackState.isPlaying
+    seekStartedWhilePlaying = wasPlaying
+    lastPreviewSeekTimestamp = 0
+
+    if wasPlaying {
+      viewModel.pause()
+    }
   }
 
-  private func endSeekingSession() {
+  private func endSeekingSession(resumePlayback: Bool = true) {
+    cancelPendingPreviewSeek()
     isSeeking = false
+    lastPreviewSeekTimestamp = 0
+
+    if resumePlayback, seekStartedWhilePlaying {
+      viewModel.play()
+    }
+  }
+
+  private func cancelSeekingSessionIfNeeded() {
+    guard isSeeking else {
+      cancelPendingPreviewSeek()
+      return
+    }
+
+    viewModel.finishSeeking(
+      to: seekPosition,
+      resumePlayback: seekStartedWhilePlaying,
+      persistImmediately: false
+    )
+
+    endSeekingSession(resumePlayback: false)
+  }
+
+  private func schedulePreviewSeek(to time: TimeInterval) {
+    let now = Date.timeIntervalSinceReferenceDate
+    let elapsed = now - lastPreviewSeekTimestamp
+
+    if elapsed >= previewSeekInterval {
+      cancelPendingPreviewSeek()
+      dispatchPreviewSeek(to: time, at: now)
+      return
+    }
+
+    pendingPreviewSeekTask?.cancel()
+    let delay = previewSeekInterval - elapsed
+    pendingPreviewSeekTask = Task { @MainActor in
+      try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+
+      guard !Task.isCancelled, isSeeking else {
+        return
+      }
+
+      dispatchPreviewSeek(to: seekPosition, at: Date.timeIntervalSinceReferenceDate)
+      pendingPreviewSeekTask = nil
+    }
+  }
+
+  private func dispatchPreviewSeek(to time: TimeInterval, at timestamp: TimeInterval) {
+    lastPreviewSeekTimestamp = timestamp
+    viewModel.seek(to: time)
+  }
+
+  private func cancelPendingPreviewSeek() {
+    pendingPreviewSeekTask?.cancel()
+    pendingPreviewSeekTask = nil
   }
 
   private var dropIndicator: some View {

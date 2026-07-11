@@ -167,6 +167,14 @@ final class PlayerViewModel: ObservableObject {
     session.togglePlayPause()
   }
 
+  func play() {
+    session.play()
+  }
+
+  func pause() {
+    session.pause()
+  }
+
   func skipForward() {
     session.skipForward()
   }
@@ -177,6 +185,18 @@ final class PlayerViewModel: ObservableObject {
 
   func seek(to seconds: Double, persistImmediately: Bool = false) {
     session.seek(to: seconds, persistImmediately: persistImmediately)
+  }
+
+  func finishSeeking(
+    to seconds: Double,
+    resumePlayback: Bool,
+    persistImmediately: Bool = true
+  ) {
+    session.finishSeeking(
+      to: seconds,
+      resumePlayback: resumePlayback,
+      persistImmediately: persistImmediately
+    )
   }
 
   private func subtitleContentTypes() -> [UTType] {

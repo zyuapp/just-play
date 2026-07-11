@@ -138,6 +138,125 @@ final class PlayerViewModelProgressTests: XCTestCase {
     XCTAssertEqual(viewModel.playbackState.currentTime, 20, accuracy: 0.001)
   }
 
+  func testSeekDiscardsPlaybackStateCapturedBeforeRequest() async throws {
+    let videoURL = try makeVideoFile(named: "stale-state-after-seek")
+    let store = makeStore()
+    let engine = TestPlaybackEngine()
+    let viewModel = makeViewModel(engine: engine, store: store, restorePreviousSessionOnLaunch: false)
+
+    viewModel.open(url: videoURL)
+    engine.emitState(playbackState(isPlaying: true, currentTime: 10, duration: 200))
+
+    viewModel.seek(to: 60)
+    await drainMainActorTasks()
+
+    XCTAssertEqual(viewModel.playbackState.currentTime, 60, accuracy: 0.001)
+  }
+
+  func testSeekPositionStaysPinnedWhenPlaybackResumesBeforeSeekConfirmation() async throws {
+    let videoURL = try makeVideoFile(named: "resume-before-seek-confirmation")
+    let store = makeStore()
+    let engine = TestPlaybackEngine()
+    let viewModel = makeViewModel(engine: engine, store: store, restorePreviousSessionOnLaunch: false)
+
+    viewModel.open(url: videoURL)
+    engine.emitState(playbackState(isPlaying: false, currentTime: 10, duration: 200))
+    await drainMainActorTasks()
+
+    viewModel.seek(to: 60)
+    viewModel.play()
+    engine.emitState(playbackState(isPlaying: true, currentTime: 10, duration: 200))
+    await drainMainActorTasks()
+    XCTAssertEqual(viewModel.playbackState.currentTime, 60, accuracy: 0.001)
+
+    engine.emitState(playbackState(isPlaying: true, currentTime: 60.2, duration: 200))
+    await drainMainActorTasks()
+    XCTAssertEqual(viewModel.playbackState.currentTime, 60.2, accuracy: 0.001)
+  }
+
+  func testFinishSeekingResumesOnlyAfterAsynchronousSeekCompletes() async throws {
+    let videoURL = try makeVideoFile(named: "resume-after-seek-completion")
+    let store = makeStore()
+    let engine = TestPlaybackEngine()
+    engine.completesSeeksImmediately = false
+    let viewModel = makeViewModel(engine: engine, store: store, restorePreviousSessionOnLaunch: false)
+
+    viewModel.open(url: videoURL)
+    engine.emitState(playbackState(isPlaying: false, currentTime: 10, duration: 200))
+    await drainMainActorTasks()
+
+    viewModel.finishSeeking(to: 60, resumePlayback: true)
+    XCTAssertFalse(engine.events.contains(.play))
+
+    engine.completeNextSeek()
+    await drainMainActorTasks()
+    XCTAssertTrue(engine.events.contains(.play))
+  }
+
+  func testSupersededSeekCompletionDoesNotResumePlayback() async throws {
+    let videoURL = try makeVideoFile(named: "superseded-seek-completion")
+    let store = makeStore()
+    let engine = TestPlaybackEngine()
+    engine.completesSeeksImmediately = false
+    let viewModel = makeViewModel(engine: engine, store: store, restorePreviousSessionOnLaunch: false)
+
+    viewModel.open(url: videoURL)
+    engine.emitState(playbackState(isPlaying: false, currentTime: 10, duration: 200))
+    await drainMainActorTasks()
+
+    viewModel.finishSeeking(to: 60, resumePlayback: true)
+    viewModel.finishSeeking(to: 90, resumePlayback: true)
+
+    engine.completeNextSeek()
+    await drainMainActorTasks()
+    XCTAssertFalse(engine.events.contains(.play))
+
+    engine.completeNextSeek()
+    await drainMainActorTasks()
+    XCTAssertTrue(engine.events.contains(.play))
+  }
+
+  func testCompletedSeekDoesNotResumeReplacementMedia() async throws {
+    let firstURL = try makeVideoFile(named: "completed-seek-original")
+    let replacementURL = try makeVideoFile(named: "completed-seek-replacement")
+    let store = makeStore()
+    let engine = TestPlaybackEngine()
+    let viewModel = makeViewModel(engine: engine, store: store, restorePreviousSessionOnLaunch: false)
+
+    viewModel.open(url: firstURL)
+    engine.emitState(playbackState(isPlaying: false, currentTime: 10, duration: 200))
+    await drainMainActorTasks()
+
+    viewModel.finishSeeking(to: 60, resumePlayback: true)
+    viewModel.open(url: replacementURL, autoplay: false)
+    await drainMainActorTasks()
+
+    XCTAssertFalse(engine.events.contains(.play))
+  }
+
+  func testStalePlaybackFinishDoesNotClearReplacementProgress() async throws {
+    let firstURL = try makeVideoFile(named: "finished-original")
+    let replacementURL = try makeVideoFile(named: "finished-replacement")
+    let store = makeStore()
+    seedState(
+      in: store,
+      recentEntries: [makeEntry(url: replacementURL, position: 50, duration: 200)]
+    )
+    let engine = TestPlaybackEngine()
+    let viewModel = makeViewModel(engine: engine, store: store, restorePreviousSessionOnLaunch: false)
+
+    viewModel.open(url: firstURL)
+    engine.emitPlaybackDidFinish()
+    viewModel.open(url: replacementURL, autoplay: false)
+    await drainMainActorTasks()
+
+    XCTAssertEqual(
+      entry(for: replacementURL, in: viewModel.recentEntries)?.lastPlaybackPosition ?? -1,
+      50,
+      accuracy: 0.001
+    )
+  }
+
   func testLaunchRestoresMostRecentSessionWithoutAutoplay() async throws {
     let videoURL = try makeVideoFile(named: "restore-launch")
     let store = makeStore()
