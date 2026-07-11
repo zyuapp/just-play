@@ -10,7 +10,6 @@ struct ContentView: View {
   @State private var seekPosition: Double = 0
   @State private var isSeeking = false
   @State private var seekStartedWhilePlaying = false
-  @State private var lastLiveSeekDispatchTimestamp: TimeInterval = 0
   @State private var isFullscreen = false
   @State private var isHoveringFullscreenControlsRegion = false
   @State private var fullscreenSubtitlePanel = FullscreenSubtitlePanelVisibility()
@@ -20,7 +19,6 @@ struct ContentView: View {
   @State private var isSidebarVisible = true
   @State private var fullscreenSubtitleHideWorkItem: DispatchWorkItem?
 
-  private let liveSeekDispatchInterval: TimeInterval = 0.08
   private let fullscreenSubtitleHideDelay: TimeInterval = 0.35
   private let playbackRateOptions: [Double] = [0.5, 1.0, 1.25, 1.5, 2.0]
 
@@ -460,7 +458,6 @@ struct ContentView: View {
             }
 
             seekPosition = targetTime
-            dispatchLiveSeekIfNeeded(to: targetTime)
           }
           .onEnded { value in
             guard duration > 0 else {
@@ -501,22 +498,10 @@ struct ContentView: View {
   private func beginSeekingSession() {
     isSeeking = true
     seekStartedWhilePlaying = viewModel.playbackState.isPlaying
-    lastLiveSeekDispatchTimestamp = 0
   }
 
   private func endSeekingSession() {
     isSeeking = false
-    lastLiveSeekDispatchTimestamp = 0
-  }
-
-  private func dispatchLiveSeekIfNeeded(to time: TimeInterval) {
-    let now = Date.timeIntervalSinceReferenceDate
-    guard now - lastLiveSeekDispatchTimestamp >= liveSeekDispatchInterval else {
-      return
-    }
-
-    lastLiveSeekDispatchTimestamp = now
-    viewModel.seek(to: time)
   }
 
   private var dropIndicator: some View {
