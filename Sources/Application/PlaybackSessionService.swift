@@ -23,6 +23,8 @@ final class PlaybackSessionService: ObservableObject {
   private var observations: Set<AnyCancellable> = []
   private var playbackProgressTimer: Timer?
   private let playbackStateGate = PlaybackStateDeliveryGate()
+  private var playbackRequested = false
+  private var seekShouldResumePlayback: Bool?
 
   init(
     engine: PlaybackEngine,
@@ -102,6 +104,8 @@ final class PlaybackSessionService: ObservableObject {
 
     currentURL = normalizedURL
     currentOpenedAt = Date()
+    playbackRequested = autoplay
+    seekShouldResumePlayback = nil
 
     let resumePosition = library.resumePosition(for: normalizedURL)
     resumeCoordinator.beginResume(toPosition: resumePosition, autoplay: autoplay)
@@ -172,21 +176,42 @@ final class PlaybackSessionService: ObservableObject {
   }
 
   func togglePlayPause() {
-    performEngineCommand {
-      if playbackState.isPlaying {
-        engine.pause()
-      } else {
-        engine.play()
-      }
+    if playbackRequested {
+      pause()
+    } else {
+      play()
     }
   }
 
   func play() {
+    playbackRequested = true
+    if seekShouldResumePlayback != nil {
+      seekShouldResumePlayback = true
+    }
     performEngineCommand(engine.play)
   }
 
   func pause() {
+    playbackRequested = false
+    if seekShouldResumePlayback != nil {
+      seekShouldResumePlayback = false
+    }
     performEngineCommand(engine.pause)
+  }
+
+  func beginSeeking() -> Bool {
+    if let seekShouldResumePlayback {
+      return seekShouldResumePlayback
+    }
+
+    let shouldResumePlayback = playbackRequested
+    seekShouldResumePlayback = shouldResumePlayback
+
+    if shouldResumePlayback {
+      performEngineCommand(engine.pause)
+    }
+
+    return shouldResumePlayback
   }
 
   func skipForward() {
@@ -211,9 +236,10 @@ final class PlaybackSessionService: ObservableObject {
 
   func finishSeeking(
     to seconds: Double,
-    resumePlayback: Bool,
     persistImmediately: Bool = true
   ) {
+    let resumePlayback = seekShouldResumePlayback ?? false
+    seekShouldResumePlayback = nil
     let clampedSeconds = prepareSeek(to: seconds)
     let seekGeneration = beginEngineCommand()
     engine.seek(to: clampedSeconds) { [weak self, playbackStateGate] in
@@ -286,6 +312,7 @@ final class PlaybackSessionService: ObservableObject {
   }
 
   private func handlePlaybackDidFinish() {
+    playbackRequested = false
     clearResumePositionForCurrentFile()
   }
 

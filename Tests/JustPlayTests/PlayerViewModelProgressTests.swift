@@ -30,7 +30,7 @@ final class PlayerViewModelProgressTests: XCTestCase {
     let engine = TestPlaybackEngine()
     let viewModel = makeViewModel(engine: engine, store: store, restorePreviousSessionOnLaunch: false)
 
-    viewModel.open(url: videoURL)
+    viewModel.open(url: videoURL, autoplay: true)
     XCTAssertTrue(viewModel.statusMessage.contains("(resuming)"))
 
     engine.emitState(playbackState(isPlaying: true, currentTime: 0, duration: 300))
@@ -185,12 +185,50 @@ final class PlayerViewModelProgressTests: XCTestCase {
     engine.emitState(playbackState(isPlaying: false, currentTime: 10, duration: 200))
     await drainMainActorTasks()
 
-    viewModel.finishSeeking(to: 60, resumePlayback: true)
+    _ = viewModel.beginSeeking()
+    viewModel.finishSeeking(to: 60)
     XCTAssertFalse(engine.events.contains(.play))
 
     engine.completeNextSeek()
     await drainMainActorTasks()
     XCTAssertTrue(engine.events.contains(.play))
+  }
+
+  func testSeekingResumesWhenPlaybackStateIsTemporarilyNotPlaying() async throws {
+    let videoURL = try makeVideoFile(named: "seek-while-buffering")
+    let store = makeStore()
+    let engine = TestPlaybackEngine()
+    let viewModel = makeViewModel(engine: engine, store: store, restorePreviousSessionOnLaunch: false)
+
+    viewModel.open(url: videoURL, autoplay: true)
+    engine.emitState(playbackState(isPlaying: false, currentTime: 10, duration: 200))
+    await drainMainActorTasks()
+
+    let shouldResumePlayback = viewModel.beginSeeking()
+    XCTAssertTrue(shouldResumePlayback)
+    XCTAssertTrue(engine.events.contains(.pause))
+
+    viewModel.finishSeeking(to: 60)
+    await drainMainActorTasks()
+    XCTAssertTrue(engine.events.contains(.play))
+  }
+
+  func testSeekingDoesNotResumeWhenPlaybackWasPaused() async throws {
+    let videoURL = try makeVideoFile(named: "seek-while-paused")
+    let store = makeStore()
+    let engine = TestPlaybackEngine()
+    let viewModel = makeViewModel(engine: engine, store: store, restorePreviousSessionOnLaunch: false)
+
+    viewModel.open(url: videoURL, autoplay: false)
+    engine.emitState(playbackState(isPlaying: false, currentTime: 10, duration: 200))
+    await drainMainActorTasks()
+
+    let shouldResumePlayback = viewModel.beginSeeking()
+    XCTAssertFalse(shouldResumePlayback)
+
+    viewModel.finishSeeking(to: 60)
+    await drainMainActorTasks()
+    XCTAssertFalse(engine.events.contains(.play))
   }
 
   func testSupersededSeekCompletionDoesNotResumePlayback() async throws {
@@ -200,12 +238,14 @@ final class PlayerViewModelProgressTests: XCTestCase {
     engine.completesSeeksImmediately = false
     let viewModel = makeViewModel(engine: engine, store: store, restorePreviousSessionOnLaunch: false)
 
-    viewModel.open(url: videoURL)
+    viewModel.open(url: videoURL, autoplay: true)
     engine.emitState(playbackState(isPlaying: false, currentTime: 10, duration: 200))
     await drainMainActorTasks()
 
-    viewModel.finishSeeking(to: 60, resumePlayback: true)
-    viewModel.finishSeeking(to: 90, resumePlayback: true)
+    _ = viewModel.beginSeeking()
+    viewModel.finishSeeking(to: 60)
+    _ = viewModel.beginSeeking()
+    viewModel.finishSeeking(to: 90)
 
     engine.completeNextSeek()
     await drainMainActorTasks()
@@ -223,11 +263,12 @@ final class PlayerViewModelProgressTests: XCTestCase {
     let engine = TestPlaybackEngine()
     let viewModel = makeViewModel(engine: engine, store: store, restorePreviousSessionOnLaunch: false)
 
-    viewModel.open(url: firstURL)
+    viewModel.open(url: firstURL, autoplay: true)
     engine.emitState(playbackState(isPlaying: false, currentTime: 10, duration: 200))
     await drainMainActorTasks()
 
-    viewModel.finishSeeking(to: 60, resumePlayback: true)
+    _ = viewModel.beginSeeking()
+    viewModel.finishSeeking(to: 60)
     viewModel.open(url: replacementURL, autoplay: false)
     await drainMainActorTasks()
 

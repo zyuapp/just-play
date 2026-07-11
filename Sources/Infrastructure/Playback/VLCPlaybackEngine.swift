@@ -16,6 +16,7 @@ final class VLCPlaybackEngine: NSObject, PlaybackEngine, VideoSurfaceProviding {
   private var nativeSubtitlePolicy = VLCNativeSubtitlePolicy()
   private var latestSeekRequestID: UInt64 = 0
   private var pendingSeekCompletion: (requestID: UInt64, target: TimeInterval, completion: () -> Void)?
+  private var seekCompletionFallback: DispatchWorkItem?
 
   override init() {
     mediaPlayer = VLCMediaPlayer()
@@ -38,6 +39,8 @@ final class VLCPlaybackEngine: NSObject, PlaybackEngine, VideoSurfaceProviding {
   func load(url: URL, autoplay: Bool) {
     latestSeekRequestID &+= 1
     pendingSeekCompletion = nil
+    seekCompletionFallback?.cancel()
+    seekCompletionFallback = nil
     let media = VLCMedia(url: url)
     mediaPlayer.media = media
     nativeSubtitlePolicy.mediaDidLoad()
@@ -66,6 +69,7 @@ final class VLCPlaybackEngine: NSObject, PlaybackEngine, VideoSurfaceProviding {
   func seek(to time: TimeInterval, completion: @escaping () -> Void) {
     guard time.isFinite else { return }
     latestSeekRequestID &+= 1
+    seekCompletionFallback?.cancel()
     let clampedTime = max(time, 0)
     let currentTime = max(Double(mediaPlayer.time.intValue) / 1000, 0)
     let wasAlreadyAtTarget = abs(currentTime - clampedTime) <= 0.35
@@ -75,6 +79,8 @@ final class VLCPlaybackEngine: NSObject, PlaybackEngine, VideoSurfaceProviding {
 
     if wasAlreadyAtTarget {
       completePendingSeekIfConfirmed()
+    } else {
+      scheduleSeekCompletionFallback()
     }
   }
 
@@ -187,8 +193,31 @@ extension VLCPlaybackEngine: VLCMediaPlayerDelegate {
       return
     }
 
+    completePendingSeek(requestID: pendingSeekCompletion.requestID)
+  }
+
+  private func completePendingSeek(requestID: UInt64) {
+    guard
+      let pendingSeekCompletion,
+      pendingSeekCompletion.requestID == requestID,
+      requestID == latestSeekRequestID
+    else {
+      return
+    }
+
     self.pendingSeekCompletion = nil
+    seekCompletionFallback?.cancel()
+    seekCompletionFallback = nil
     pendingSeekCompletion.completion()
+  }
+
+  private func scheduleSeekCompletionFallback() {
+    let requestID = latestSeekRequestID
+    let fallback = DispatchWorkItem { [weak self] in
+      self?.completePendingSeek(requestID: requestID)
+    }
+    seekCompletionFallback = fallback
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: fallback)
   }
 }
 #endif

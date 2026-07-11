@@ -175,6 +175,10 @@ final class PlayerViewModel: ObservableObject {
     session.pause()
   }
 
+  func beginSeeking() -> Bool {
+    session.beginSeeking()
+  }
+
   func skipForward() {
     session.skipForward()
   }
@@ -189,12 +193,10 @@ final class PlayerViewModel: ObservableObject {
 
   func finishSeeking(
     to seconds: Double,
-    resumePlayback: Bool,
     persistImmediately: Bool = true
   ) {
     session.finishSeeking(
       to: seconds,
-      resumePlayback: resumePlayback,
       persistImmediately: persistImmediately
     )
   }

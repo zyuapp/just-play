@@ -485,10 +485,9 @@ struct ContentView: View {
             seekPosition = targetTime
             cancelPendingPreviewSeek()
             viewModel.finishSeeking(
-              to: targetTime,
-              resumePlayback: seekStartedWhilePlaying
+              to: targetTime
             )
-            endSeekingSession(resumePlayback: false)
+            endSeekingSession()
           }
       )
       .opacity(duration > 0 ? 1 : 0.5)
@@ -515,24 +514,16 @@ struct ContentView: View {
   }
 
   private func beginSeekingSession() {
-    let wasPlaying = viewModel.playbackState.isPlaying
+    let shouldResumePlayback = viewModel.beginSeeking()
     isSeeking = true
-    seekStartedWhilePlaying = wasPlaying
+    seekStartedWhilePlaying = shouldResumePlayback
     lastPreviewSeekTimestamp = 0
-
-    if wasPlaying {
-      viewModel.pause()
-    }
   }
 
-  private func endSeekingSession(resumePlayback: Bool = true) {
+  private func endSeekingSession() {
     cancelPendingPreviewSeek()
     isSeeking = false
     lastPreviewSeekTimestamp = 0
-
-    if resumePlayback, seekStartedWhilePlaying {
-      viewModel.play()
-    }
   }
 
   private func cancelSeekingSessionIfNeeded() {
@@ -543,11 +534,10 @@ struct ContentView: View {
 
     viewModel.finishSeeking(
       to: seekPosition,
-      resumePlayback: seekStartedWhilePlaying,
       persistImmediately: false
     )
 
-    endSeekingSession(resumePlayback: false)
+    endSeekingSession()
   }
 
   private func schedulePreviewSeek(to time: TimeInterval) {
