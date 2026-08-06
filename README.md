@@ -1,6 +1,6 @@
-# JustPlay
+# Just Play
 
-JustPlay is a macOS SwiftUI video player app generated from an XcodeGen spec.
+Just Play is a macOS SwiftUI video player app generated from an XcodeGen spec.
 
 ## Requirements
 

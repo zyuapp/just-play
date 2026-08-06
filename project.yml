@@ -22,15 +22,17 @@ targets:
       - path: Sources
     settings:
       base:
+        EXECUTABLE_NAME: JustPlay
         PRODUCT_BUNDLE_IDENTIFIER: com.justplay
-        PRODUCT_NAME: JustPlay
+        PRODUCT_MODULE_NAME: JustPlay
+        PRODUCT_NAME: "Just Play"
     dependencies:
       - framework: Carthage/Build/VLCKit.xcframework
     info:
       path: Sources/Info.plist
       properties:
-        CFBundleName: JustPlay
-        CFBundleDisplayName: JustPlay
+        CFBundleName: Just Play
+        CFBundleDisplayName: Just Play
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
         LSMinimumSystemVersion: "13.0"
@@ -65,6 +67,8 @@ targets:
       - path: Tests/JustPlayTests
     settings:
       base:
+        BUNDLE_LOADER: "$(TEST_HOST)"
         GENERATE_INFOPLIST_FILE: true
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Just Play.app/Contents/MacOS/JustPlay"
     dependencies:
       - target: JustPlay

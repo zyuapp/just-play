@@ -64,7 +64,7 @@ final class MiniPlayerController: NSObject, ObservableObject {
       defer: false
     )
 
-    panel.title = "JustPlay Mini Player"
+    panel.title = "Just Play Mini Player"
     panel.titleVisibility = .hidden
     panel.titlebarAppearsTransparent = true
     panel.isReleasedWhenClosed = false

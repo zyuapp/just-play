@@ -1,7 +1,7 @@
 PROJECT := JustPlay.xcodeproj
 SCHEME := JustPlay
 DESTINATION := platform=macOS,arch=arm64
-APP_NAME := JustPlay.app
+APP_NAME := Just Play.app
 DERIVED_DATA := ./.derivedData
 APP_BUNDLE := $(DERIVED_DATA)/Build/Products/Debug/$(APP_NAME)
 APPLICATIONS_DIR ?= /Applications

@@ -48,7 +48,7 @@ struct PlayerSurfaceContainer: View {
         .frame(width: 54, height: 54)
         .foregroundStyle(.white.opacity(0.8))
 
-      Text("JustPlay")
+      Text("Just Play")
         .font(.title3.weight(.semibold))
         .foregroundStyle(.white)
 

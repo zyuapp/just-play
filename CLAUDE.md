@@ -1,4 +1,4 @@
-# JustPlay
+# Just Play
 
 macOS SwiftUI app generated from an XcodeGen spec.
 
@@ -8,8 +8,8 @@ macOS SwiftUI app generated from an XcodeGen spec.
 | --- | --- |
 | `make setup` | Bootstrap Carthage deps and generate the Xcode project. |
 | `make build` | Build the app for macOS. |
-| `make run` | Build and launch `JustPlay.app`. |
-| `make install` | Copy `JustPlay.app` to `/Applications` and open it. Supports `APPLICATIONS_DIR=~/Applications`. |
+| `make run` | Build and launch `Just Play.app`. |
+| `make install` | Copy `Just Play.app` to `/Applications` and open it. Supports `APPLICATIONS_DIR=~/Applications`. |
 | `make help` | Show all available Makefile targets. |
 
 ## Architecture
