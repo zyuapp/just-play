@@ -7,10 +7,16 @@ protocol PlaybackEngine: AnyObject {
   func load(url: URL, autoplay: Bool)
   func play()
   func pause()
-  func seek(to time: TimeInterval)
+  func seek(to time: TimeInterval, completion: @escaping () -> Void)
   func skip(by interval: TimeInterval)
   func setRate(_ rate: Float)
   func setVolume(_ volume: Float)
   func setMuted(_ muted: Bool)
   func setNativeSubtitleRenderingEnabled(_ enabled: Bool)
+}
+
+extension PlaybackEngine {
+  func seek(to time: TimeInterval) {
+    seek(to: time, completion: {})
+  }
 }

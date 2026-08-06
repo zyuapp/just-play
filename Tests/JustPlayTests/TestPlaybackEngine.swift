@@ -19,6 +19,8 @@ final class TestPlaybackEngine: PlaybackEngine, VideoSurfaceProviding {
   var playbackDidFinish: (() -> Void)?
 
   private(set) var events: [Event] = []
+  var completesSeeksImmediately = true
+  private var seekCompletions: [() -> Void] = []
 
   func makeVideoView() -> NSView {
     NSView(frame: .zero)
@@ -36,8 +38,22 @@ final class TestPlaybackEngine: PlaybackEngine, VideoSurfaceProviding {
     events.append(.pause)
   }
 
-  func seek(to time: TimeInterval) {
+  func seek(to time: TimeInterval, completion: @escaping () -> Void) {
     events.append(.seek(time))
+
+    if completesSeeksImmediately {
+      completion()
+    } else {
+      seekCompletions.append(completion)
+    }
+  }
+
+  func completeNextSeek() {
+    guard !seekCompletions.isEmpty else {
+      return
+    }
+
+    seekCompletions.removeFirst()()
   }
 
   func skip(by interval: TimeInterval) {
