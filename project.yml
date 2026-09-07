@@ -5,6 +5,10 @@ options:
 settings:
   base:
     SWIFT_VERSION: 5.9
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.9.2
 schemes:
   JustPlay:
     build:
@@ -26,8 +30,12 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.justplay
         PRODUCT_MODULE_NAME: JustPlay
         PRODUCT_NAME: "Just Play"
+      configs:
+        Release:
+          ENABLE_HARDENED_RUNTIME: true
     dependencies:
       - framework: Carthage/Build/VLCKit.xcframework
+      - package: Sparkle
     info:
       path: Sources/Info.plist
       properties:
@@ -35,6 +43,11 @@ targets:
         CFBundleDisplayName: Just Play
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
+        SUFeedURL: https://github.com/zyuapp/just-play/releases/latest/download/appcast.xml
+        SUPublicEDKey: 2PbQwcPQJgv6si1MA129T14VgfCd7Hurmav+NiC/oSo=
+        SUEnableAutomaticChecks: true
+        SUAutomaticallyUpdate: false
+        SUScheduledCheckInterval: 21600
         LSMinimumSystemVersion: "13.0"
         NSHighResolutionCapable: true
         NSPrincipalClass: NSApplication

@@ -4,5 +4,6 @@
 .plans/
 .sisyphus/
 build/
+dist/
 Carthage/
 JustPlay.xcodeproj/

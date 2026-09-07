@@ -49,6 +49,16 @@
 	<true/>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/zyuapp/just-play/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>2PbQwcPQJgv6si1MA129T14VgfCd7Hurmav+NiC/oSo=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>21600</integer>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict>

@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-This repository currently depends on the third-party component below.
+This repository depends on the third-party components below.
 
 ## Runtime Dependency
 
@@ -18,6 +18,14 @@ License text:
 - https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt
 
 If you redistribute binaries that include or link against VLCKit, you are responsible for meeting applicable LGPL requirements.
+
+### Sparkle
+
+- Upstream: https://github.com/sparkle-project/Sparkle
+- Version: 2.9.2 (pinned in `project.yml`)
+- Purpose: Signed in-app software updates
+- License: MIT, with additional notices for bundled components
+- Complete license notices are included in `Sources/Resources/Sparkle-LICENSE.txt` and bundled with the app.
 
 ## Tooling (Not Redistributed as Part of App Runtime)
 
