@@ -41,8 +41,8 @@ targets:
       properties:
         CFBundleName: Just Play
         CFBundleDisplayName: Just Play
-        CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: "1.0.1"
+        CFBundleVersion: "2"
         SUFeedURL: https://github.com/zyuapp/just-play/releases/latest/download/appcast.xml
         SUPublicEDKey: 2PbQwcPQJgv6si1MA129T14VgfCd7Hurmav+NiC/oSo=
         SUEnableAutomaticChecks: true
